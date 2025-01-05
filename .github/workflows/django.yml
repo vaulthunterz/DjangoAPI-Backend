@@ -15,6 +15,27 @@ jobs:
         python-version: [3.9, "3.10", "3.11"]
       fail-fast: false
 
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: github_actions
+        ports:
+          - 5430:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5430/github_actions
+      DJANGO_SETTINGS_MODULE: ExpenseCategorizationAPI.settings
+      DEBUG: "1"
+      SECRET_KEY: "github_actions_key"
+
     steps:
     - uses: actions/checkout@v4
     
@@ -28,14 +49,26 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
+    - name: Wait for PostgreSQL
+      run: |
+        # Wait for PostgreSQL to be ready
+        timeout 30 bash -c "until printf '' 2>NUL >>/dev/tcp/localhost/5430; do sleep 1; done"
+      shell: bash
+    
     - name: Run Migrations
       run: |
         python manage.py makemigrations
         python manage.py migrate
+      env:
+        DJANGO_SETTINGS_MODULE: ExpenseCategorizationAPI.settings
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5430/github_actions
       
     - name: Run Tests
       run: |
         python manage.py test
+      env:
+        DJANGO_SETTINGS_MODULE: ExpenseCategorizationAPI.settings
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5430/github_actions
 
     - name: Upload test results
       if: always()
