@@ -30,7 +30,11 @@ jobs:
 
     - name: Install PostgreSQL on Windows
       run: |
-        choco install postgresql
+        # Install PostgreSQL using Chocolatey
+        choco install postgresql -y
+        # Add PostgreSQL binaries to PATH
+        $env:PATH = "C:\Program Files\PostgreSQL\13\bin;$env:PATH"
+        # Start PostgreSQL
         pg_ctl -D "C:\Program Files\PostgreSQL\13\data" -l logfile start
       shell: powershell
 
@@ -64,4 +68,3 @@ jobs:
           ./*/test-reports/
           ./test-reports/
         if-no-files-found: ignore
-
