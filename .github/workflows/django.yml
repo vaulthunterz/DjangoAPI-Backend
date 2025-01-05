@@ -8,66 +8,52 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # Changed to Linux
+    runs-on: windows-latest
     strategy:
       max-parallel: 4
       matrix:
-        python-version: [3.9, "3.10", "3.11"]
+        python-version: ["3.11"]
       fail-fast: false
-
-    services:
-      postgres:
-        image: postgres:latest
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: github_actions
-        ports:
-          - 5432:5432  # Changed to default PostgreSQL port
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/github_actions  # Updated port
-      DJANGO_SETTINGS_MODULE: ExpenseCategorizationAPI.settings
-      DEBUG: "1"
-      SECRET_KEY: "github_actions_key"
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-    
+
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
+
+    - name: Install PostgreSQL on Windows
+      run: |
+        choco install postgresql
+        pg_ctl -D "C:\Program Files\PostgreSQL\13\data" -l logfile start
+      shell: powershell
+
     - name: Wait for PostgreSQL
       run: |
         # Wait for PostgreSQL to be ready
-        timeout 30 bash -c "until echo > /dev/tcp/localhost/5432; do sleep 1; done"
+        timeout 30 bash -c "until printf '' 2>NUL >>/dev/tcp/localhost/5432; do sleep 1; done"
       shell: bash
-    
+
     - name: Run Migrations
       run: |
         python manage.py makemigrations
         python manage.py migrate
       env:
         DJANGO_SETTINGS_MODULE: ExpenseCategorizationAPI.settings
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/github_actions  # Updated port
-      
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/github_actions
+
     - name: Run Tests
       run: |
         python manage.py test
       env:
         DJANGO_SETTINGS_MODULE: ExpenseCategorizationAPI.settings
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/github_actions  # Updated port
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/github_actions
 
     - name: Upload test results
       if: always()
@@ -78,3 +64,4 @@ jobs:
           ./*/test-reports/
           ./test-reports/
         if-no-files-found: ignore
+
