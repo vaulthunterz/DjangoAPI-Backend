@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 
@@ -132,5 +132,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:19006',
+    'http://localhost:8081',
     'http://localhost:19000' # Add other origins
 ]
+
+GOOGLE_AI_STUDIO_KEY = os.getenv('AIzaSyAKsk3wdloOiTD1Qh-RSIKKE_drNdOFrfw')
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
