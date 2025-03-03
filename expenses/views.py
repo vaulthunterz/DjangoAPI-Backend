@@ -102,7 +102,7 @@ class CategoryPredictionView(APIView):
                 )
 
             # Initialize Gemini model
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-2.0-flash')
 
             # Create prompt for Gemini
             prompt = f"""
