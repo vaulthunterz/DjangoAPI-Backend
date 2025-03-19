@@ -1,0 +1,20 @@
+﻿# Ignore Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore Virtual Environment
+venv/
+.env
+
+# Ignore Django-specific files
+db.sqlite3
+media/
+staticfiles/
+migrations/
+
+# Ignore logs
+*.log
+logs/
+
+serviceAccountKey.json

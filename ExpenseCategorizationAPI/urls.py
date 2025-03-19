@@ -4,6 +4,7 @@ from django.views.generic import RedirectView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('expenses.urls')),
-    path('', RedirectView.as_view(url='/api/transactions/'), name='api-root'),
+    path('api/expenses/', include('expenses.urls')),
+    # path('api/investment/', include('investment.urls')),
+    # path('', RedirectView.as_view(url='/api/transactions/'), name='api-root'),
 ]
