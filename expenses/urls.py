@@ -1,18 +1,25 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import (
+    TransactionViewSet, CategoryViewSet, SubCategoryViewSet,
+    CategoryLookupView, SubCategoryLookupView,
+    ChatbotView, ModelMetricsView, RetrainModelView
+)
+from .gemini_prediction import GeminiPredictionView
+from .custom_prediction import CustomModelPredictionView
 
-from . import views
-from .views import TransactionListCreateView, CategoryPredictionView, CustomModelPredictionView, RetrainModelView, \
-    ChatbotView, TransactionUpdateView
+router = DefaultRouter()
+router.register(r'transactions', TransactionViewSet)
+router.register(r'categories', CategoryViewSet)
+router.register(r'subcategories', SubCategoryViewSet)
 
 urlpatterns = [
-    path('transactions/', TransactionListCreateView.as_view(), name='transaction-list-create'),
-
-    path('transactions/<int:pk>/', TransactionUpdateView.as_view(), name='transaction-update'),
-
-    path('categories/', views.CategoryLookupView.as_view()),
-    path('subcategories/', views.SubCategoryLookupView.as_view()),
-    path('predict/', CategoryPredictionView.as_view(), name='predict-category'),
-    path('predict_custom/', CustomModelPredictionView.as_view(), name='predict-custom-category'),
-    path('retrain/', RetrainModelView.as_view(), name='retrain-model'),
-    path('chatbot/', ChatbotView.as_view(), name="chatbot-view"),
+    path('', include(router.urls)),
+    path('category-lookup/', CategoryLookupView.as_view(), name='category-lookup'),
+    path('subcategory-lookup/', SubCategoryLookupView.as_view(), name='subcategory-lookup'),
+    path('predict/gemini/', GeminiPredictionView.as_view(), name='gemini-predict'),
+    path('predict/custom/', CustomModelPredictionView.as_view(), name='custom-predict'),
+    path('chatbot/', ChatbotView.as_view(), name='chatbot'),
+    path('model-metrics/', ModelMetricsView.as_view(), name='model-metrics'),
+    path('model/retrain/', RetrainModelView.as_view(), name='model-retrain'),
 ]

@@ -11,11 +11,18 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 import os
 from pathlib import Path
+import firebase_admin
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+STATIC_URL = '/static/'
+
+# Set STATIC_ROOT to a valid path where static files will be collected
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+LOGIN_URL = '/admin/login/'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -26,7 +33,7 @@ SECRET_KEY = 'django-insecure-7y5#q$)6kh5@w2bt@+xh)6rf0ouz3hvg+8r4v+y==(3%5#5q)0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']  # Allow all hosts in development
 
 # Application definition
 
@@ -39,8 +46,18 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'expenses.apps.ExpensesConfig',
+    'investment',
     'corsheaders',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'expenses.firebase_auth.FirebaseAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -53,7 +70,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'expenses.urls'
+ROOT_URLCONF = 'ExpenseCategorizationAPI.urls'
 
 TEMPLATES = [
     {
@@ -81,9 +98,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'expense_tracker_db',
-        'USER': 'postgres',  # Update this with your db username
-        'PASSWORD': '8844',  # Update this with your db password
-        'HOST': 'localhost',
+        'USER': 'postgres',
+        'PASSWORD': '8844',
+        'HOST': 'localhost',  # Changed from 0.0.0.0 to localhost
         'PORT': '5430',
     }
 }
@@ -123,19 +140,40 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:19006',
-    'http://localhost:8081',
-    'http://localhost:19000' # Add other origins
-]
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins in development
+CORS_ALLOW_CREDENTIALS = True
+
+# CORS_ALLOWED_ORIGINS = [
+#     'http://localhost:19006',
+#     'http://localhost:8081',
+#     'http://localhost:19000' # Add other origins
+# ]
 
 GOOGLE_AI_STUDIO_KEY = os.getenv('AIzaSyAKsk3wdloOiTD1Qh-RSIKKE_drNdOFrfw')
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+
+# --- CELERY ---
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Or your Redis URL
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Africa/Nairobi'  # Set your timezone
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_SEND_SENT_EVENT = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Check if Firebase is properly initialized
+try:
+    firebase_admin.get_app()
+    print("Firebase is initialized")
+except ValueError:
+    print("Firebase is not initialized")
