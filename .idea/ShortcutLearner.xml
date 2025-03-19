@@ -3,8 +3,9 @@
   <component name="ShortcutStateService">
     <option name="shortcutCounts">
       <map>
-        <entry key="COMMENT" value="1" />
+        <entry key="COMMENT" value="13" />
         <entry key="FIND_ACTION" value="1" />
+        <entry key="RENAME" value="2" />
       </map>
     </option>
   </component>
