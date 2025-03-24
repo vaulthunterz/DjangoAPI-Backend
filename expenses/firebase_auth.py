@@ -87,11 +87,13 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
             print(f"Unexpected error during authentication: {str(e)}")  # Debug log
             raise exceptions.AuthenticationFailed('Firebase authentication failed: '+ str(e))
 
-
         # Get or create the Django user.
         try:
             user = User.objects.get(username=uid)
         except User.DoesNotExist:
             # Create a new user.  You might want to customize this.
             user = User.objects.create_user(username=uid, email=decoded_token.get('email', ''))
+
+        # Add Django user ID to the request for use in views
+        request.user_id = user.id
         return (user, None) # Return user and set authentication to True

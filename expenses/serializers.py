@@ -70,6 +70,13 @@ class TransactionSerializer(serializers.ModelSerializer):
             'subcategory_id',
         ]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Add Django user ID to the response
+        if 'context' in self and 'django_user_id' in self.context:
+            data['django_user_id'] = self.context['django_user_id']
+        return data
+
     def create(self, validated_data):
         # Get the user from the context if not provided in validated_data
         if 'user' not in validated_data and 'request' in self.context:

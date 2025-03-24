@@ -107,6 +107,13 @@ class TransactionViewSet(viewsets.ModelViewSet):
         # Automatically retrain the model
         self.retrain_model()
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        # Add Django user ID to context
+        context['django_user_id'] = self.request.user.id
+        return context
+
     def destroy(self, request, *args, **kwargs):
         try:
             # Log the request details
@@ -169,11 +176,6 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             print(f"Error retraining model: {str(e)}")
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['request'] = self.request
-        return context
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only, as categories are usually predefined
     queryset = Category.objects.all()
