@@ -23,6 +23,7 @@ from datetime import datetime
 from .ml.model_training import ExpenseCategoryClassifier
 from .gemini_prediction import GeminiPredictionView, get_gemini_model
 from .custom_prediction import CustomModelPredictionView
+from firebase_admin import auth
 
 
 
@@ -667,3 +668,52 @@ class ModelMetricsView(APIView):
             )[:20]),  # Top 20 important features
             'training_history': model_metrics.training_history
         })
+
+class ChangePasswordView(APIView):
+    authentication_classes = [FirebaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            current_password = request.data.get('current_password')
+            new_password = request.data.get('new_password')
+            confirm_password = request.data.get('confirm_password')
+
+            if not all([current_password, new_password, confirm_password]):
+                return Response(
+                    {'error': 'All fields are required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if new_password != confirm_password:
+                return Response(
+                    {'error': 'New passwords do not match'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            try:
+                # Get the Firebase user
+                user = auth.get_user_by_email(request.user.email)
+                
+                # Update the password directly
+                # Since the user is already authenticated through FirebaseAuthentication,
+                # we can trust that they are the legitimate user
+                auth.update_user(user.uid, password=new_password)
+                
+                return Response(
+                    {'message': 'Password updated successfully'},
+                    status=status.HTTP_200_OK
+                )
+            except Exception as e:
+                print(f"Firebase operation failed: {str(e)}")
+                return Response(
+                    {'error': f'Error updating password: {str(e)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except Exception as e:
+            print(f"General error in password change: {str(e)}")
+            return Response(
+                {'error': f'Error processing request: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -8,7 +8,6 @@ from django.utils import timezone
 from dotenv import load_dotenv
 
 from expenses.models import Transaction
-from investment.views import FINANCIAL_DATA_API_KEY, FINANCIAL_DATA_API_URL
 
 
 load_dotenv()

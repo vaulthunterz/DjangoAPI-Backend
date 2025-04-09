@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     TransactionViewSet, CategoryViewSet, SubCategoryViewSet,
     CategoryLookupView, SubCategoryLookupView,
-    ChatbotView, ModelMetricsView, RetrainModelView
+    ChatbotView, ModelMetricsView, RetrainModelView,
+    ChangePasswordView
 )
 from .gemini_prediction import GeminiPredictionView
 from .custom_prediction import CustomModelPredictionView
@@ -22,4 +23,5 @@ urlpatterns = [
     path('chatbot/', ChatbotView.as_view(), name='chatbot'),
     path('model-metrics/', ModelMetricsView.as_view(), name='model-metrics'),
     path('model/retrain/', RetrainModelView.as_view(), name='model-retrain'),
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
 ]

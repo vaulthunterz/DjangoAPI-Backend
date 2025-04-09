@@ -13,6 +13,9 @@ import os
 from pathlib import Path
 import firebase_admin
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -57,12 +60,23 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [],
+    'DEFAULT_THROTTLE_RATES': {},
+    'DEFAULT_AUTHENTICATION_HEADERS': ['Authorization'],
+    'UNAUTHENTICATED_USER': None,
+    # Development helper - will be ignored in production
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
 }
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',  # Must be first
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -150,13 +164,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:19006',  # Expo web
     'http://localhost:8081',   # Expo dev server
+    'http://localhost:8080',   # Expo dev server
     'http://localhost:19000',  # Expo dev server
+    'http://localhost:3000',   # Common React port
     'http://127.0.0.1:19006',  # Alternative localhost
-    'http://127.0.0.1:8081',   # Alternative localhost
+    'http://127.0.0.1:8080',
+    'http://127.0.0.1:8000',   # Django default
     'http://127.0.0.1:19000',  # Alternative localhost
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -165,6 +183,7 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -175,10 +194,22 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-debug-mode',
+    'x-client-platform',
 ]
 
-# Remove or comment out CORS_ALLOW_ALL_ORIGINS if it exists
-# CORS_ALLOW_ALL_ORIGINS = True  # Comment this out
+# Add these additional settings
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:19006',
+    'http://localhost:8081', 
+    'http://localhost:8080',
+    'http://localhost:19000',
+    'http://127.0.0.1:19006',
+    'http://127.0.0.1:8080',
+    'http://127.0.0.1:8000',
+    'http://127.0.0.1:19000',
+]
 
 GOOGLE_AI_STUDIO_KEY = os.getenv('AIzaSyAKsk3wdloOiTD1Qh-RSIKKE_drNdOFrfw')
 
@@ -201,3 +232,28 @@ try:
     print("Firebase is initialized")
 except ValueError:
     print("Firebase is not initialized")
+
+# Add debug settings when in development mode
+if os.environ.get('DJANGO_DEVELOPMENT') == 'true':
+    print("⚠️ Running in DEVELOPMENT mode - authentication might be relaxed ⚠️")
+    # More verbose Django logging
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'loggers': {
+            'django': {
+                'handlers': ['console'],
+                'level': 'INFO',
+            },
+            'django.request': {
+                'handlers': ['console'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
+        },
+    }

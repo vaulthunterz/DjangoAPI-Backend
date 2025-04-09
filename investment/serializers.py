@@ -1,6 +1,6 @@
 ﻿# investment/serializers.py
 from rest_framework import serializers
-from .models import UserProfile, Recommendation, Portfolio, PortfolioItem, FinancialAsset, Alert
+from .models import UserProfile, Recommendation, Portfolio, PortfolioItem, MoneyMarketFund, Alert, InvestmentQuestionnaire
 from django.contrib.auth.models import User
 
 
@@ -18,11 +18,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = '__all__'
+        read_only_fields = ('user',)
 
 
-class FinancialAssetSerializer(serializers.ModelSerializer):
+class MoneyMarketFundSerializer(serializers.ModelSerializer):
     class Meta:
-        model = FinancialAsset
+        model = MoneyMarketFund
         fields = '__all__'
 
 
@@ -30,6 +31,8 @@ class PortfolioItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = PortfolioItem
         fields = '__all__'
+        read_only_fields = ('portfolio',)
+
 
 class PortfolioSerializer(serializers.ModelSerializer):
     items = PortfolioItemSerializer(many=True, read_only=True)  # Nested items (read-only)
@@ -40,7 +43,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Portfolio
         fields = '__all__'
-
+        read_only_fields = ('user',)
 
 
 class RecommendationSerializer(serializers.ModelSerializer):
@@ -52,14 +55,15 @@ class RecommendationSerializer(serializers.ModelSerializer):
     portfolio_id = serializers.PrimaryKeyRelatedField(
         queryset = Portfolio.objects.all(), source = 'portfolio', allow_null = True, required = False
     )
-    financial_asset = FinancialAssetSerializer(read_only = True)
+    financial_asset = MoneyMarketFundSerializer(read_only = True)
     financial_asset_id = serializers.PrimaryKeyRelatedField(
-      queryset = FinancialAsset.objects.all(), source = 'financial_asset', allow_null = True, required = False
+      queryset = MoneyMarketFund.objects.all(), source = 'financial_asset', allow_null = True, required = False
     )
 
     class Meta:
         model = Recommendation
         fields = '__all__'
+        read_only_fields = ('user',)
 
 
 class AlertSerializer(serializers.ModelSerializer):
@@ -74,3 +78,11 @@ class AlertSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alert
         fields = '__all__'
+        read_only_fields = ('user',)
+
+
+class InvestmentQuestionnaireSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvestmentQuestionnaire
+        fields = '__all__'
+        read_only_fields = ('user', 'expense_categories', 'income_sources')

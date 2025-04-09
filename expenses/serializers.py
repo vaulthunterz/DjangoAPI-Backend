@@ -72,8 +72,8 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        # Add Django user ID to the response
-        if 'context' in self and 'django_user_id' in self.context:
+        # Add Django user ID to the response if context is available
+        if hasattr(self, 'context') and 'django_user_id' in self.context:
             data['django_user_id'] = self.context['django_user_id']
         return data
 
