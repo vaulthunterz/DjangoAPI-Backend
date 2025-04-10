@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from .firebase_auth import FirebaseAuthentication
 from .models import Transaction, Category, SubCategory
 from .serializers import TransactionSerializer, CategorySerializer, SubCategorySerializer
+from .pagination import StandardResultsSetPagination, TransactionPagination, LargeResultsSetPagination
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -67,7 +68,7 @@ class ModelMetrics:
         self.num_transactions = metrics_dict.get('num_transactions', 0)
         self.num_categories = metrics_dict.get('num_categories', 0)
         self.feature_importance = metrics_dict.get('feature_importance', {})
-        
+
         # Add to training history
         history_entry = {
             'timestamp': self.last_trained.isoformat(),
@@ -85,7 +86,8 @@ class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     authentication_classes = [FirebaseAuthentication]
     permission_classes = [IsAuthenticated]
-    
+    pagination_class = TransactionPagination
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.classifier = ExpenseCategoryClassifier()
@@ -104,7 +106,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Save the transaction with the current user
         transaction = serializer.save(user=self.request.user)
-        
+
         # Automatically retrain the model
         self.retrain_model()
 
@@ -122,11 +124,11 @@ class TransactionViewSet(viewsets.ModelViewSet):
             # Get the instance
             instance = self.get_object()
             print(f"Found transaction: ID={instance.id}, transaction_id={instance.transaction_id}")
-            
+
             # Perform the deletion
             self.perform_destroy(instance)
             print(f"Successfully deleted transaction {kwargs.get('pk')}")
-            
+
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Exception as e:
             print(f"Error deleting transaction: {str(e)}")
@@ -139,13 +141,13 @@ class TransactionViewSet(viewsets.ModelViewSet):
         try:
             # Fetch transaction data
             transactions = Transaction.objects.all().select_related('category', 'subcategory')
-            
+
             if len(transactions) < 10:
                 return  # Not enough data to train
 
             # Prepare training data
             training_data = []
-            
+
             for transaction in transactions:
                 if transaction.category and transaction.subcategory:
                     training_data.append({
@@ -160,10 +162,10 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
             # Convert to DataFrame
             df = pd.DataFrame(training_data)
-            
+
             # Train model and get metrics
             metrics = self.classifier.train_model(df)
-            
+
             # Update global metrics
             model_metrics.update({
                 'accuracy': metrics['category_accuracy'],
@@ -181,10 +183,12 @@ class TransactionViewSet(viewsets.ModelViewSet):
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):  # Read-only, as categories are usually predefined
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    pagination_class = StandardResultsSetPagination
 
 class SubCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = SubCategory.objects.all()
     serializer_class = SubCategorySerializer
+    pagination_class = StandardResultsSetPagination
     def get_queryset(self):
         # Optionally filter by category if category_id is provided in the URL
         category_id = self.kwargs.get('category_pk')
@@ -362,7 +366,7 @@ class CustomModelPredictionView(APIView):
                 if not category:
                     # If no exact match, try case-insensitive contains
                     category = Category.objects.filter(name__icontains=category_name).first()
-                
+
                 if not category:
                     print(f"Category not found: {category_name}")
                     # Fallback to Unknown category
@@ -374,14 +378,14 @@ class CustomModelPredictionView(APIView):
                         name__iexact=subcategory_name,
                         category=category
                     ).first()
-                    
+
                     if not subcategory:
                         # Try case-insensitive contains
                         subcategory = SubCategory.objects.filter(
                             name__icontains=subcategory_name,
                             category=category
                         ).first()
-                    
+
                     if not subcategory:
                         print(f"Subcategory not found: {subcategory_name}")
                         # Fallback to Other subcategory in the found category
@@ -419,33 +423,33 @@ class RetrainModelView(APIView):
             # Get the absolute path to the training data file
             base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             csv_path = os.path.join(base_dir, 'backend', 'expenses', 'ml', 'training_data', 'transactions.csv')
-            
+
             print(f"Attempting to load training data from: {csv_path}")
-            
+
             if not os.path.exists(csv_path):
                 # Try alternative path
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 csv_path = os.path.join(current_dir, 'ml', 'training_data', 'transactions.csv')
                 print(f"First path not found, trying alternative path: {csv_path}")
-                
+
                 if not os.path.exists(csv_path):
                     raise Exception(f"Training data file not found at either expected location")
-            
+
             print(f"Found training data file at: {csv_path}")
             df = pd.read_csv(csv_path)
-            
+
             if df.empty:
                 raise Exception("Training data file is empty")
-                
+
             required_columns = ['description', 'category', 'subcategory', 'merchant']
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 raise Exception(f"Training data file is missing required columns: {', '.join(missing_columns)}")
-            
+
             # Prepare training data
             training_data = []
             labels = []
-            
+
             for _, row in df.iterrows():
                 # Combine description and merchant for features
                 combined_text = f"{row['description']} {row['merchant']}"
@@ -453,10 +457,10 @@ class RetrainModelView(APIView):
                 # Combine category and subcategory for label
                 label = f"{row['category']} - {row['subcategory']}"
                 labels.append(label)
-            
+
             if not training_data or not labels:
                 raise Exception("No valid training data could be extracted from the file")
-                
+
             print(f"Successfully loaded {len(training_data)} training examples")
             return training_data, labels
         except pd.errors.EmptyDataError:
@@ -469,17 +473,17 @@ class RetrainModelView(APIView):
     def load_db_transactions(self):
         """Load and process transactions from the database."""
         transactions = Transaction.objects.all().select_related('category', 'subcategory')
-        
+
         training_data = []
         labels = []
-        
+
         for transaction in transactions:
             if transaction.category and transaction.subcategory:
                 combined_text = f"{transaction.description} {transaction.merchant_name}"
                 training_data.append(combined_text)
                 label = f"{transaction.category.name} - {transaction.subcategory.name}"
                 labels.append(label)
-                
+
         return training_data, labels, len(transactions)
 
     def train_model(self, training_data, labels):
@@ -517,7 +521,7 @@ class RetrainModelView(APIView):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         ml_dir = os.path.join(current_dir, 'ml')
         os.makedirs(ml_dir, exist_ok=True)
-        
+
         joblib.dump(clf, os.path.join(ml_dir, 'custom_model.joblib'))
         joblib.dump(vectorizer, os.path.join(ml_dir, 'vectorizer.joblib'))
 
@@ -549,12 +553,12 @@ class RetrainModelView(APIView):
         try:
             # Check if we should use baseline data
             use_baseline = request.data.get('use_baseline', False)
-            
+
             if use_baseline:
                 # Load and train with baseline data
                 training_data, labels = self.load_baseline_data()
                 training_results = self.train_model(training_data, labels)
-                
+
                 # Also save the label encoder for predictions
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 ml_dir = os.path.join(current_dir, 'ml')
@@ -562,7 +566,7 @@ class RetrainModelView(APIView):
                 label_encoder = LabelEncoder()
                 label_encoder.fit(labels)
                 joblib.dump(label_encoder, os.path.join(ml_dir, 'label_encoder.joblib'))
-                
+
                 return Response({
                     'message': 'Baseline model trained successfully',
                     'accuracy': training_results['accuracy'],
@@ -577,16 +581,16 @@ class RetrainModelView(APIView):
             else:
                 # Load transactions from database
                 db_data, db_labels, num_transactions = self.load_db_transactions()
-                
+
                 if num_transactions < 10:
                     return Response(
                         {'error': 'Not enough data to train model (minimum 10 transactions required). Use baseline training instead.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
+
                 # Train with database transactions
                 training_results = self.train_model(db_data, db_labels)
-                
+
                 # Update label encoder for predictions
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 ml_dir = os.path.join(current_dir, 'ml')
@@ -594,7 +598,7 @@ class RetrainModelView(APIView):
                 label_encoder = LabelEncoder()
                 label_encoder.fit(db_labels)
                 joblib.dump(label_encoder, os.path.join(ml_dir, 'label_encoder.joblib'))
-                
+
                 return Response({
                     'message': 'Custom model retrained successfully with database transactions',
                     'accuracy': training_results['accuracy'],
@@ -628,9 +632,9 @@ class ChatbotView(APIView):
 
             # Generate response from the model
             response = gemini_model.generate_content(
-                f"""You are a helpful financial assistant that provides useful information to users. 
+                f"""You are a helpful financial assistant that provides useful information to users.
                 When asked a question you should always try to provide a full response that includes a title and also well-formatted paragraphs with the information requested.
-                Always answer as if you are speaking to a customer in a friendly way. Don't add space at the beginning of the sentence. 
+                Always answer as if you are speaking to a customer in a friendly way. Don't add space at the beginning of the sentence.
                 At the end, ask whether clarification is needed or not.
                 {prompt}"""
             )
@@ -694,12 +698,12 @@ class ChangePasswordView(APIView):
             try:
                 # Get the Firebase user
                 user = auth.get_user_by_email(request.user.email)
-                
+
                 # Update the password directly
                 # Since the user is already authenticated through FirebaseAuthentication,
                 # we can trust that they are the legitimate user
                 auth.update_user(user.uid, password=new_password)
-                
+
                 return Response(
                     {'message': 'Password updated successfully'},
                     status=status.HTTP_200_OK

@@ -18,29 +18,29 @@ class RandomForestRecommender(BaseRecommender):
     def __init__(self):
         self.model_dir = os.path.join(settings.BASE_DIR, 'ml', 'models')
         self.model_path = os.path.join(self.model_dir, 'rf_recommender.joblib')
-        
+
         self.feature_columns = [
-            'risk_tolerance', 
-            'investment_experience', 
+            'risk_tolerance',
+            'investment_experience',
             'investment_timeline',
-            'monthly_disposable_income', 
+            'monthly_disposable_income',
             'age_group'
         ]
-        
+
         self.numeric_features = ['monthly_disposable_income']
         self.categorical_features = [
-            'risk_tolerance', 
-            'investment_experience', 
-            'investment_timeline', 
+            'risk_tolerance',
+            'investment_experience',
+            'investment_timeline',
             'age_group'
         ]
-        
+
         self.model = self._create_pipeline()
-        
+
     def _create_pipeline(self) -> Pipeline:
         """Create the ML pipeline with preprocessing and model"""
         numeric_transformer = StandardScaler()
-        categorical_transformer = OneHotEncoder(drop='first', sparse=False)
+        categorical_transformer = OneHotEncoder(drop='first', sparse_output=False)
 
         preprocessor = ColumnTransformer(
             transformers=[
@@ -69,18 +69,18 @@ class RandomForestRecommender(BaseRecommender):
     def predict(self, user_features: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Generate recommendations based on user features"""
         features_df = pd.DataFrame([user_features])
-        
+
         # Ensure all required features are present
         for col in self.feature_columns:
             if col not in features_df.columns:
                 features_df[col] = None
-        
+
         # Make prediction
         probabilities = self.model.predict_proba(features_df)
-        
+
         # Get class labels
         classes = self.model.classes_
-        
+
         # Create recommendations
         recommendations = []
         for i, class_label in enumerate(classes):
@@ -89,7 +89,7 @@ class RandomForestRecommender(BaseRecommender):
                 'probability': float(probabilities[0][i]),
                 'confidence': 'high' if probabilities[0][i] > 0.7 else 'medium' if probabilities[0][i] > 0.4 else 'low'
             })
-        
+
         # Sort by probability
         recommendations.sort(key=lambda x: x['probability'], reverse=True)
         return recommendations
@@ -110,4 +110,4 @@ class RandomForestRecommender(BaseRecommender):
         if os.path.exists(path):
             self.model = joblib.load(path)
         else:
-            self.model = self._create_pipeline() 
+            self.model = self._create_pipeline()

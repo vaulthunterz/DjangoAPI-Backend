@@ -3,7 +3,7 @@ Utility functions for data preprocessing
 """
 import pandas as pd
 from typing import Dict, Any
-from investment.models import UserProfile, Portfolio, PortfolioItem
+from ...models import UserProfile, Portfolio, PortfolioItem
 
 def prepare_user_features(user_profile: UserProfile) -> Dict[str, Any]:
     """Convert UserProfile to feature dictionary"""
@@ -18,13 +18,13 @@ def prepare_user_features(user_profile: UserProfile) -> Dict[str, Any]:
 def calculate_portfolio_metrics(portfolio: Portfolio) -> Dict[str, float]:
     """Calculate portfolio performance metrics"""
     items = PortfolioItem.objects.filter(portfolio=portfolio)
-    
+
     total_value = sum(item.quantity * item.buy_price for item in items)
     asset_distribution = {
-        item.asset_name: (item.quantity * item.buy_price) / total_value 
+        item.asset_name: (item.quantity * item.buy_price) / total_value
         for item in items
     } if total_value > 0 else {}
-    
+
     return {
         'total_value': total_value,
         'asset_distribution': asset_distribution,
@@ -37,11 +37,11 @@ def calculate_portfolio_metrics(portfolio: Portfolio) -> Dict[str, float]:
 def prepare_training_data(user_profiles: list, portfolio_performances: list) -> pd.DataFrame:
     """Prepare training data from user profiles and portfolio performances"""
     training_data = []
-    
+
     for profile, performance in zip(user_profiles, portfolio_performances):
         features = prepare_user_features(profile)
         # Add performance metrics as target
         features['target'] = 'successful' if performance > 0.1 else 'moderate' if performance > 0 else 'poor'
         training_data.append(features)
-    
-    return pd.DataFrame(training_data) 
+
+    return pd.DataFrame(training_data)

@@ -71,6 +71,9 @@ REST_FRAMEWORK = {
     'UNAUTHENTICATED_USER': None,
     # Development helper - will be ignored in production
     'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+    # Pagination settings
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,  # Default number of items per page
 }
 
 MIDDLEWARE = [
@@ -202,7 +205,7 @@ CORS_ALLOW_HEADERS = [
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:19006',
-    'http://localhost:8081', 
+    'http://localhost:8081',
     'http://localhost:8080',
     'http://localhost:19000',
     'http://127.0.0.1:19006',

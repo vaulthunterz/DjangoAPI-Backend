@@ -5,7 +5,8 @@ from rest_framework_nested import routers
 from .views import (
     UserProfileViewSet, PortfolioViewSet, PortfolioItemViewSet,
     MoneyMarketFundViewSet, RecommendationViewSet, AlertViewSet,
-    InvestmentQuestionnaireViewSet, ExpenseBasedRecommendationView
+    InvestmentQuestionnaireViewSet, ExpenseBasedRecommendationView,
+    PortfolioSummaryView
 )
 
 # --- Routers ---
@@ -29,4 +30,8 @@ urlpatterns = [
     path('', include(router.urls)),
     path('', include(portfolio_router.urls)),  # Include nested routes
     path('expense-based-recommendations/', ExpenseBasedRecommendationView.as_view(), name='expense-based-recommendations'),
+    # Explicitly add the questionnaire status endpoint
+    path('questionnaires/status/', InvestmentQuestionnaireViewSet.as_view({'get': 'status'}), name='questionnaire-status'),
+    # Add portfolio summary endpoint
+    path('portfolio/summary/', PortfolioSummaryView.as_view(), name='portfolio-summary'),
 ]

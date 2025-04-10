@@ -38,7 +38,7 @@ class UserProfile(models.Model):
 class InvestmentQuestionnaire(models.Model):
     """Model to store user responses to investment questionnaire"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='investment_questionnaire')
-    
+
     # Financial Situation
     annual_income_range = models.CharField(max_length=50, choices=[
         ('0-30000', 'Less than $30,000'),
@@ -46,29 +46,29 @@ class InvestmentQuestionnaire(models.Model):
         ('50000-80000', '$50,000 - $80,000'),
         ('80000-120000', '$80,000 - $120,000'),
         ('120000+', 'More than $120,000')
-    ])
+    ], null=True, blank=True)
     monthly_savings_range = models.CharField(max_length=50, choices=[
         ('0-200', 'Less than $200'),
         ('200-500', '$200 - $500'),
         ('500-1000', '$500 - $1,000'),
         ('1000-2000', '$1,000 - $2,000'),
         ('2000+', 'More than $2,000')
-    ])
+    ], null=True, blank=True)
     emergency_fund_months = models.CharField(max_length=50, choices=[
         ('0', 'No emergency fund'),
         ('1-3', '1-3 months of expenses'),
         ('3-6', '3-6 months of expenses'),
         ('6-12', '6-12 months of expenses'),
         ('12+', 'More than 12 months of expenses')
-    ])
+    ], null=True, blank=True)
     debt_situation = models.CharField(max_length=50, choices=[
         ('none', 'No debt'),
         ('low', 'Low debt (manageable with current income)'),
         ('moderate', 'Moderate debt (working on paying off)'),
         ('high', 'High debt (struggling to manage)'),
         ('very_high', 'Very high debt (need debt management help)')
-    ])
-    
+    ], null=True, blank=True)
+
     # Investment Goals
     primary_goal = models.CharField(max_length=100, choices=[
         ('retirement', 'Planning for retirement'),
@@ -79,22 +79,22 @@ class InvestmentQuestionnaire(models.Model):
         ('emergency_fund', 'Building an emergency fund'),
         ('major_purchase', 'Saving for a major purchase'),
         ('other', 'Other goal')
-    ])
+    ], null=True, blank=True)
     investment_timeframe = models.CharField(max_length=50, choices=[
         ('very_short', 'Less than 1 year'),
         ('short', '1-3 years'),
         ('medium', '3-5 years'),
         ('long', '5-10 years'),
         ('very_long', 'More than 10 years')
-    ])
+    ], null=True, blank=True)
     monthly_investment = models.CharField(max_length=50, choices=[
         ('0-100', 'Less than $100'),
         ('100-300', '$100 - $300'),
         ('300-500', '$300 - $500'),
         ('500-1000', '$500 - $1,000'),
         ('1000+', 'More than $1,000')
-    ])
-    
+    ], null=True, blank=True)
+
     # Risk Assessment
     market_drop_reaction = models.CharField(max_length=50, choices=[
         ('sell_all', 'Sell all investments immediately'),
@@ -102,29 +102,29 @@ class InvestmentQuestionnaire(models.Model):
         ('do_nothing', 'Do nothing and wait it out'),
         ('buy_more', 'Buy more while prices are low'),
         ('seek_advice', 'Seek professional advice')
-    ])
+    ], null=True, blank=True)
     investment_preference = models.CharField(max_length=50, choices=[
         ('very_safe', 'Guaranteed returns with no risk'),
         ('conservative', 'Mostly safe investments with some growth potential'),
         ('balanced', 'Mix of safe and growth investments'),
         ('growth', 'Mostly growth with some risk protection'),
         ('aggressive', 'Maximum growth potential with higher risk')
-    ])
+    ], null=True, blank=True)
     loss_tolerance = models.CharField(max_length=50, choices=[
         ('0-5', 'Less than 5%'),
         ('5-10', '5% - 10%'),
         ('10-20', '10% - 20%'),
         ('20-30', '20% - 30%'),
         ('30+', 'More than 30%')
-    ])
+    ], null=True, blank=True)
     risk_comfort_scenario = models.CharField(max_length=50, choices=[
         ('scenario_1', 'Potential gain: 5%, Potential loss: 2%'),
         ('scenario_2', 'Potential gain: 10%, Potential loss: 5%'),
         ('scenario_3', 'Potential gain: 20%, Potential loss: 12%'),
         ('scenario_4', 'Potential gain: 30%, Potential loss: 20%'),
         ('scenario_5', 'Potential gain: 40%, Potential loss: 30%')
-    ])
-    
+    ], null=True, blank=True)
+
     # Investment Knowledge & Experience
     investment_knowledge = models.CharField(max_length=50, choices=[
         ('none', 'No knowledge or experience'),
@@ -132,41 +132,41 @@ class InvestmentQuestionnaire(models.Model):
         ('moderate', 'Familiar with stocks and mutual funds'),
         ('good', 'Good understanding of various investment products'),
         ('expert', 'Expert knowledge of financial markets')
-    ])
+    ], null=True, blank=True)
     investment_experience_years = models.CharField(max_length=50, choices=[
         ('none', 'No experience'),
         ('0-2', 'Less than 2 years'),
         ('2-5', '2-5 years'),
         ('5-10', '5-10 years'),
         ('10+', 'More than 10 years')
-    ])
+    ], null=True, blank=True)
     previous_investments = models.JSONField(default=list, help_text='List of investment types previously used')
-    
+
     # Investment Preferences
     preferred_investment_types = models.JSONField(default=list, help_text='List of preferred investment types')
     ethical_preferences = models.JSONField(default=list, help_text='List of ethical investment preferences')
     sector_preferences = models.JSONField(default=list, help_text='List of preferred sectors')
-    
+
     # Additional Information
     financial_dependents = models.CharField(max_length=50, choices=[
         ('none', 'No dependents'),
         ('1-2', '1-2 dependents'),
         ('3-4', '3-4 dependents'),
         ('5+', '5 or more dependents')
-    ])
+    ], null=True, blank=True)
     income_stability = models.CharField(max_length=50, choices=[
         ('very_stable', 'Very stable income'),
         ('stable', 'Stable income'),
         ('somewhat_stable', 'Somewhat stable income'),
         ('unstable', 'Unstable income'),
         ('very_unstable', 'Very unstable income')
-    ])
+    ], null=True, blank=True)
     major_expenses_planned = models.JSONField(default=list, help_text='List of planned major expenses in next 5 years')
-    
+
     # System fields
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     def __str__(self):
         return f"Questionnaire for {self.user.username}"
 
@@ -194,13 +194,13 @@ class MoneyMarketFund(models.Model):
     description = models.TextField(blank=True, null=True)
     fund_manager = models.CharField(max_length=100)
     risk_level = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(10)]) # 1-10 scale
-    
+
     # Fund details
     min_investment = models.DecimalField(max_digits=15, decimal_places=2)
     expected_returns = models.CharField(max_length=100)
     liquidity = models.CharField(max_length=50, default='High')
     fees = models.CharField(max_length=100, default='0.5-1.5% annually')
-    
+
     # Additional information
     inception_date = models.DateField(null=True, blank=True)
     fund_size = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
