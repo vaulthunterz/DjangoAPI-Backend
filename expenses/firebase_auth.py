@@ -65,17 +65,22 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
             if not auth_header.startswith('Bearer '):
                 print("Token does not have Bearer prefix")  # Debug log
                 return None
-            
+
             # Extract the token
             token = auth_header.split('Bearer ')[1].strip()
-            
+
             # More verbose logging for troubleshooting
             print(f"Token extracted, length: {len(token)}")
             print(f"Token first 10 chars: {token[:10]}...")
             print(f"Token format check - contains dots: {('.' in token)}")
             print(f"Request path: {request.path}")
             print(f"Request method: {request.method}")
-            
+
+            # Check if token is being sent as a URL path
+            if request.path.startswith('/' + token):
+                print("ERROR: Token is being sent as URL path instead of Authorization header")
+                raise exceptions.AuthenticationFailed('Token should be sent in Authorization header, not as URL path')
+
         except (ValueError, IndexError) as e:
             print(f"Error extracting token: {str(e)}")  # Debug log
             raise exceptions.AuthenticationFailed('Invalid token header format.')
@@ -86,7 +91,7 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
 
         try:
             print("Attempting to verify Firebase token...")  # Debug log
-            
+
             # Remove the development bypass and properly verify the token
             try:
                 decoded_token = auth.verify_id_token(token)  # Verify the token
@@ -96,7 +101,7 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
                 print(f"Token verification failed: {str(token_error)}")
                 # Don't bypass security, but provide detailed error for debugging
                 raise exceptions.AuthenticationFailed(f'Firebase token verification failed: {str(token_error)}')
-                
+
         except auth.InvalidIdTokenError as e:
             print(f"Invalid Firebase ID token: {str(e)}")  # Debug log
             raise exceptions.AuthenticationFailed('Invalid Firebase ID token: ' + str(e))
@@ -116,8 +121,8 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
             print(f"Creating new user with username: {uid}")
             try:
                 user = User.objects.create_user(
-                    username=uid, 
-                    email=f"{uid}@example.com", 
+                    username=uid,
+                    email=f"{uid}@example.com",
                     password="devpassword123"  # Only for development!
                 )
                 print(f"New user created: {user.username}")

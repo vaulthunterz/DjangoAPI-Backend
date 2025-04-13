@@ -4,6 +4,7 @@ from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 import json
 
@@ -145,6 +146,16 @@ class InvestmentQuestionnaireViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def status(self, request):
         """Check if the user has completed the questionnaire and return analytics"""
+        # Check if user is authenticated
+        if not request.user or request.user.is_anonymous:
+            return Response({
+                'isCompleted': False,
+                'data': None,
+                'profile': None,
+                'analytics': None,
+                'message': 'Authentication required'
+            }, status=401)  # Return 401 Unauthorized
+
         try:
             questionnaire = InvestmentQuestionnaire.objects.get(user=request.user)
 
@@ -635,6 +646,7 @@ class ExpenseBasedRecommendationView(APIView):
 
 class PortfolioSummaryView(APIView):
     """API view for getting a summary of all user portfolios"""
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         # Check if this is a schema generation request
@@ -644,37 +656,76 @@ class PortfolioSummaryView(APIView):
                 'portfolios': [],
                 'asset_allocation': {}
             }, status=status.HTTP_200_OK)
-        user_profile = request.user.userprofile
 
-        # Get all portfolios for the user
-        portfolios = Portfolio.objects.filter(user=user_profile)
+        try:
+            # Get user profile
+            try:
+                user_profile = request.user.userprofile
+            except Exception as e:
+                print(f"Error getting user profile: {str(e)}")
+                # Return default data if user profile doesn't exist
+                return Response({
+                    'total_invested': 0,
+                    'current_value': 0,
+                    'returns': 0,
+                    'returns_percentage': 0,
+                    'asset_allocation': [
+                        {"type": "Stocks", "percentage": 60, "value": 0},
+                        {"type": "Bonds", "percentage": 30, "value": 0},
+                        {"type": "Cash", "percentage": 10, "value": 0}
+                    ]
+                })
 
-        if not portfolios.exists():
+            # Get all portfolios for the user
+            portfolios = Portfolio.objects.filter(user=user_profile)
+
+            if not portfolios.exists():
+                return Response({
+                    'total_invested': 0,
+                    'current_value': 0,
+                    'returns': 0,
+                    'returns_percentage': 0,
+                    'asset_allocation': [
+                        {"type": "Stocks", "percentage": 60, "value": 0},
+                        {"type": "Bonds", "percentage": 30, "value": 0},
+                        {"type": "Cash", "percentage": 10, "value": 0}
+                    ]
+                })
+
+            # Calculate total invested amount
+            total_invested = sum(float(portfolio.total_amount) for portfolio in portfolios)
+
+            # Get all portfolio items
+            portfolio_items = PortfolioItem.objects.filter(portfolio__in=portfolios)
+
+            # Calculate current value (for now, we'll use the same as invested since we don't have real-time data)
+            # In a real app, you would fetch current market prices for each asset
+            current_value = sum(float(item.quantity * item.buy_price) for item in portfolio_items)
+
+            # If no items, use the portfolio total_amount as current value
+            if not portfolio_items.exists():
+                current_value = total_invested
+
+            # Calculate returns
+            returns = current_value - total_invested
+            returns_percentage = (returns / total_invested * 100) if total_invested > 0 else 0
+
+        except Exception as e:
+            # Log the error
+            print(f"Error in PortfolioSummaryView: {str(e)}")
+            # Return a default response
             return Response({
-                'total_invested': 0,
-                'current_value': 0,
-                'returns': 0,
-                'returns_percentage': 0,
-                'asset_allocation': []
-            })
-
-        # Calculate total invested amount
-        total_invested = sum(float(portfolio.total_amount) for portfolio in portfolios)
-
-        # Get all portfolio items
-        portfolio_items = PortfolioItem.objects.filter(portfolio__in=portfolios)
-
-        # Calculate current value (for now, we'll use the same as invested since we don't have real-time data)
-        # In a real app, you would fetch current market prices for each asset
-        current_value = sum(float(item.quantity * item.buy_price) for item in portfolio_items)
-
-        # If no items, use the portfolio total_amount as current value
-        if not portfolio_items.exists():
-            current_value = total_invested
-
-        # Calculate returns
-        returns = current_value - total_invested
-        returns_percentage = (returns / total_invested * 100) if total_invested > 0 else 0
+                "total_invested": 0,
+                "current_value": 0,
+                "returns": 0,
+                "returns_percentage": 0,
+                "asset_allocation": [
+                    {"type": "Stocks", "percentage": 60, "value": 0},
+                    {"type": "Bonds", "percentage": 30, "value": 0},
+                    {"type": "Cash", "percentage": 10, "value": 0}
+                ],
+                "error": str(e)
+            }, status=status.HTTP_200_OK)
 
         # Calculate asset allocation
         asset_allocation = {}
@@ -699,6 +750,14 @@ class PortfolioSummaryView(APIView):
 
         # Sort by value (descending)
         asset_allocation_list.sort(key=lambda x: x['value'], reverse=True)
+
+        # If no asset allocation, provide default
+        if not asset_allocation_list:
+            asset_allocation_list = [
+                {'type': 'Stocks', 'percentage': 60, 'value': 0},
+                {'type': 'Bonds', 'percentage': 30, 'value': 0},
+                {'type': 'Cash', 'percentage': 10, 'value': 0}
+            ]
 
         return Response({
             'total_invested': round(total_invested, 2),
