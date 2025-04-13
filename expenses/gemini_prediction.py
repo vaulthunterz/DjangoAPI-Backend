@@ -14,7 +14,25 @@ def get_gemini_model():
     return _gemini_model
 
 class GeminiPredictionView(APIView):
+    """
+    API endpoint for predicting expense categories using Google's Gemini AI model.
+
+    This view takes a transaction description and uses Gemini to predict the most
+    appropriate category and subcategory based on existing categories in the system.
+    """
     def post(self, request, *args, **kwargs):
+        """
+        Predict category for a transaction description using Gemini AI.
+
+        Parameters:
+        - description: The transaction description text to categorize
+
+        Returns:
+        - category: The predicted category name
+        - subcategory: The predicted subcategory name
+        - confidence: Confidence score of the prediction (0-1)
+        """
+
         description = request.data.get('description', '').strip()
 
         # Validate input
@@ -92,4 +110,4 @@ class GeminiPredictionView(APIView):
             return Response(
                 { 'error': str(e) },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            ) 
+            )

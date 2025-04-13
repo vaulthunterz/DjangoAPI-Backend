@@ -82,11 +82,46 @@ class ModelMetrics:
 model_metrics = ModelMetrics()
 
 class TransactionViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing transactions.
+
+    This viewset provides CRUD operations for transactions, with automatic
+    categorization using machine learning models.
+
+    list:
+        Returns a paginated list of transactions for the authenticated user.
+        Can be filtered by transaction type using the 'type' query parameter.
+
+    create:
+        Creates a new transaction and automatically retrains the ML model.
+
+    retrieve:
+        Returns details of a specific transaction.
+
+    update:
+        Updates an existing transaction.
+
+    partial_update:
+        Partially updates an existing transaction.
+
+    destroy:
+        Deletes a transaction.
+    """
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
     authentication_classes = [FirebaseAuthentication]
     permission_classes = [IsAuthenticated]
     pagination_class = TransactionPagination
+
+    def get_serializer_class(self):
+        """
+        Returns different serializers based on API version.
+        Currently only v1 is supported, but this allows for future versioning.
+        """
+        if self.request.version == 'v1':
+            return TransactionSerializer
+        # Default to current serializer if version not specified or unknown
+        return TransactionSerializer
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -95,6 +130,10 @@ class TransactionViewSet(viewsets.ModelViewSet):
         self.classifier.load_model()
 
     def get_queryset(self):
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            return Transaction.objects.none()
+
         queryset = Transaction.objects.filter(user=self.request.user)
         # Add filter for transaction type if requested
         transaction_type = self.request.query_params.get('type', None)
@@ -113,7 +152,13 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['request'] = self.request
-        # Add Django user ID to context
+
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            # Return minimal context for schema generation
+            return context
+
+        # Add Django user ID to context for normal requests
         context['django_user_id'] = self.request.user.id
         return context
 

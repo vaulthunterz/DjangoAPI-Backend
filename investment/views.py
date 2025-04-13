@@ -30,6 +30,9 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            return UserProfile.objects.none()
         # Ensure users can only access their own profile
         return UserProfile.objects.filter(user=self.request.user)
 
@@ -47,6 +50,9 @@ class InvestmentQuestionnaireViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            return InvestmentQuestionnaire.objects.none()
         # Ensure users can only access their own questionnaire
         return InvestmentQuestionnaire.objects.filter(user=self.request.user)
 
@@ -354,11 +360,30 @@ class InvestmentQuestionnaireViewSet(viewsets.ModelViewSet):
 
 
 class PortfolioViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing investment portfolios.
+
+    This viewset provides CRUD operations for portfolios, allowing users
+    to create and manage their investment portfolios.
+    """
     queryset = Portfolio.objects.all()
     serializer_class = PortfolioSerializer
     pagination_class = PortfolioPagination
 
+    def get_serializer_class(self):
+        """
+        Returns different serializers based on API version.
+        Currently only v1 is supported, but this allows for future versioning.
+        """
+        if self.request.version == 'v1':
+            return PortfolioSerializer
+        # Default to current serializer if version not specified or unknown
+        return PortfolioSerializer
+
     def get_queryset(self):
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            return Portfolio.objects.none()
         return Portfolio.objects.filter(user=self.request.user.userprofile)
 
     def perform_create(self, serializer):
@@ -372,6 +397,10 @@ class PortfolioItemViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            return PortfolioItem.objects.none()
+
         portfolio_id = self.kwargs.get('portfolio_pk')
         if portfolio_id:
             return PortfolioItem.objects.filter(portfolio_id=portfolio_id, portfolio__user=self.request.user.userprofile)
@@ -398,6 +427,9 @@ class RecommendationViewSet(viewsets.ModelViewSet):
     hybrid_recommender = HybridRecommender()
 
     def get_queryset(self):
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            return Recommendation.objects.none()
         return Recommendation.objects.filter(user=self.request.user.userprofile)
 
     def perform_create(self, serializer):
@@ -530,6 +562,9 @@ class AlertViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            return Alert.objects.none()
         return Alert.objects.filter(user=self.request.user.userprofile)
     def perform_create(self, serializer):
         serializer.save(user=self.request.user.userprofile)
@@ -539,6 +574,9 @@ class ExpenseBasedRecommendationView(APIView):
     """API view for generating recommendations based on expense patterns"""
 
     def post(self, request, *args, **kwargs):
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            return Response([], status=status.HTTP_200_OK)
         user_profile = request.user.userprofile
 
         # Initialize advanced hybrid recommender
@@ -599,6 +637,13 @@ class PortfolioSummaryView(APIView):
     """API view for getting a summary of all user portfolios"""
 
     def get(self, request, *args, **kwargs):
+        # Check if this is a schema generation request
+        if getattr(self, 'swagger_fake_view', False):
+            return Response({
+                'total_value': 0,
+                'portfolios': [],
+                'asset_allocation': {}
+            }, status=status.HTTP_200_OK)
         user_profile = request.user.userprofile
 
         # Get all portfolios for the user

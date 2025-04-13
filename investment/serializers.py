@@ -8,6 +8,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email']  # Add other relevant user fields
+        ref_name = 'InvestmentUserSerializer'
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

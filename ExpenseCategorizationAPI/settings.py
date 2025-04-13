@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'expenses.apps.ExpensesConfig',
     'investment',
     'corsheaders',
+    'drf_yasg',
 ]
 
 REST_FRAMEWORK = {
@@ -162,6 +163,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Django REST Framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    'DEFAULT_VERSION': 'v1',
+    'ALLOWED_VERSIONS': ['v1', 'v2'],  # Allow for future versions
+    'VERSION_PARAM': 'version',  # This matches our URL pattern parameter name
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+}
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
