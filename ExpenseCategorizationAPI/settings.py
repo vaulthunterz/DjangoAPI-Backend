@@ -31,12 +31,13 @@ LOGIN_URL = '/admin/login/'
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-7y5#q$)6kh5@w2bt@+xh)6rf0ouz3hvg+8r4v+y==(3%5#5q)0'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-7y5#q$)6kh5@w2bt@+xh)6rf0ouz3hvg+8r4v+y==(3%5#5q)0')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']  # Allow all hosts in development
+# Parse ALLOWED_HOSTS from environment variable or use default
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # Application definition
 
@@ -91,15 +92,16 @@ WSGI_APPLICATION = 'ExpenseCategorizationAPI.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
+# Specify your db details in .env, if .env fails, fall back to defaults
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'expense_tracker_db',
-        'USER': 'postgres',
-        'PASSWORD': '8844',
-        'HOST': 'localhost',  # Changed from 0.0.0.0 to localhost
-        'PORT': '5430',
+        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.postgresql'),
+        'NAME': os.environ.get('DB_NAME', 'expense_tracker_db'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '8844'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5430'),
     }
 }
 
@@ -171,7 +173,8 @@ REST_FRAMEWORK = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
+# Get CORS origins from environment or use defaults
+default_cors_origins = [
     'http://localhost:19006',  # Expo web
     'http://localhost:8081',   # Expo dev server
     'http://localhost:8080',   # Expo dev server
@@ -179,10 +182,16 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',   # Common React port
     'http://127.0.0.1:19006',  # Alternative localhost
     'http://127.0.0.1:8080',
-    'https://c34f-102-0-10-158.ngrok-free.app',
     'http://127.0.0.1:8000',   # Django default
     'http://127.0.0.1:19000',  # Alternative localhost
 ]
+
+# Parse CORS_ALLOWED_ORIGINS from environment variable or use defaults
+cors_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if cors_origins_env:
+    CORS_ALLOWED_ORIGINS = cors_origins_env.split(',')
+else:
+    CORS_ALLOWED_ORIGINS = default_cors_origins
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -211,19 +220,11 @@ CORS_ALLOW_HEADERS = [
 
 # Add these additional settings
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:19006',
-    'http://localhost:8081',
-    'http://localhost:8080',
-    'http://localhost:19000',
-    'http://127.0.0.1:19006',
-    'http://127.0.0.1:8080',
-    'https://c34f-102-0-10-158.ngrok-free.app',
-    'http://127.0.0.1:8000',
-    'http://127.0.0.1:19000',
-]
 
-GOOGLE_AI_STUDIO_KEY = os.getenv('AIzaSyAKsk3wdloOiTD1Qh-RSIKKE_drNdOFrfw')
+# Use the same origins for CSRF as for CORS
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+
+
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -246,13 +247,14 @@ except ValueError:
     print("Firebase is not initialized")
 
 # AI Service Settings
-GOOGLE_AI_STUDIO_KEY = os.environ.get('GOOGLE_AI_STUDIO_KEY', 'AIzaSyB465HZ8X-T5vqTfQuPBo4C_Qh66Q5PZgY')
+# Use the GEMINI_API_KEY from .env file
+GOOGLE_AI_STUDIO_KEY = os.environ.get('GEMINI_API_KEY', '')
 GEMINI_MODEL_NAME = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.0-flash')
 
 # AI Service Feature Flags
-ENABLE_GEMINI_AI = True
-ENABLE_EXPENSE_AI = True
-ENABLE_INVESTMENT_AI = True
+ENABLE_GEMINI_AI = os.environ.get('ENABLE_GEMINI_AI', 'true').lower() == 'true'
+ENABLE_EXPENSE_AI = os.environ.get('ENABLE_EXPENSE_AI', 'true').lower() == 'true'
+ENABLE_INVESTMENT_AI = os.environ.get('ENABLE_INVESTMENT_AI', 'true').lower() == 'true'
 
 # Add debug settings when in development mode
 if os.environ.get('DJANGO_DEVELOPMENT') == 'true':

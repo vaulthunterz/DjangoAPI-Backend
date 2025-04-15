@@ -7,7 +7,8 @@ import os
 from django.conf import settings
 
 # Gemini AI settings
-GOOGLE_AI_STUDIO_KEY = getattr(settings, 'GOOGLE_AI_STUDIO_KEY', os.getenv('GOOGLE_AI_STUDIO_KEY', 'AIzaSyB465HZ8X-T5vqTfQuPBo4C_Qh66Q5PZgY'))
+# Get API key from Django settings or environment variable
+GOOGLE_AI_STUDIO_KEY = getattr(settings, 'GOOGLE_AI_STUDIO_KEY', os.getenv('GEMINI_API_KEY', ''))
 GEMINI_MODEL_NAME = getattr(settings, 'GEMINI_MODEL_NAME', os.getenv('GEMINI_MODEL_NAME', 'gemini-2.0-flash'))
 
 # Expense AI settings
