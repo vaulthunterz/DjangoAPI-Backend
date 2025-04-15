@@ -18,3 +18,5 @@ migrations/
 logs/
 
 serviceAccountKey.json
+
+.idea/

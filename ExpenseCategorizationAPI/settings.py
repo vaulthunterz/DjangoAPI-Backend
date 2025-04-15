@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'investment',
     'corsheaders',
     'drf_yasg',
+    'ai_service',
 ]
 
 # REST_FRAMEWORK settings are defined below
@@ -178,6 +179,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',   # Common React port
     'http://127.0.0.1:19006',  # Alternative localhost
     'http://127.0.0.1:8080',
+    'https://c34f-102-0-10-158.ngrok-free.app',
     'http://127.0.0.1:8000',   # Django default
     'http://127.0.0.1:19000',  # Alternative localhost
 ]
@@ -216,6 +218,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:19000',
     'http://127.0.0.1:19006',
     'http://127.0.0.1:8080',
+    'https://c34f-102-0-10-158.ngrok-free.app',
     'http://127.0.0.1:8000',
     'http://127.0.0.1:19000',
 ]
@@ -241,6 +244,15 @@ try:
     print("Firebase is initialized")
 except ValueError:
     print("Firebase is not initialized")
+
+# AI Service Settings
+GOOGLE_AI_STUDIO_KEY = os.environ.get('GOOGLE_AI_STUDIO_KEY', 'AIzaSyB465HZ8X-T5vqTfQuPBo4C_Qh66Q5PZgY')
+GEMINI_MODEL_NAME = os.environ.get('GEMINI_MODEL_NAME', 'gemini-2.0-flash')
+
+# AI Service Feature Flags
+ENABLE_GEMINI_AI = True
+ENABLE_EXPENSE_AI = True
+ENABLE_INVESTMENT_AI = True
 
 # Add debug settings when in development mode
 if os.environ.get('DJANGO_DEVELOPMENT') == 'true':

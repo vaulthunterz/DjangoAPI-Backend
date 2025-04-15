@@ -1,0 +1,385 @@
+"""
+API views for the AI service.
+"""
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+
+from .factory import (
+    get_expense_ai_service,
+    get_investment_ai_service,
+    get_gemini_ai_service,
+    ai_service_factory
+)
+
+from expenses.models import Category, SubCategory
+from investment.models import Portfolio, UserProfile
+
+
+class ExpensePredictionView(APIView):
+    """
+    API endpoint for predicting expense categories.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        description = request.data.get('description', '').strip()
+        merchant = request.data.get('merchant', '').strip()
+
+        # Validate input
+        if not description:
+            return Response(
+                {'error': 'Description is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Get the expense AI service
+            expense_service = get_expense_ai_service()
+
+            # Prepare input data
+            input_data = {
+                'description': description,
+                'merchant': merchant
+            }
+
+            # Make prediction
+            prediction = expense_service.predict(input_data)
+
+            return Response(prediction)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ExpenseCustomPredictionView(APIView):
+    """
+    API endpoint for predicting expense categories using the custom model.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        description = request.data.get('description', '').strip()
+        merchant = request.data.get('merchant', '').strip()
+
+        # Validate input
+        if not description:
+            return Response(
+                {'error': 'Description is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Get the expense AI service
+            expense_service = get_expense_ai_service()
+
+            # Prepare input data
+            input_data = {
+                'description': description,
+                'merchant': merchant
+            }
+
+            # Make prediction using the custom model
+            prediction_result = expense_service.predict_with_custom_model(input_data)
+
+            # Format the response to match the expected format
+            prediction = {
+                'category_name': prediction_result.get('category', ''),
+                'subcategory_name': prediction_result.get('subcategory', ''),
+                'confidence': prediction_result.get('confidence', 0.85),
+                'category_id': prediction_result.get('category_id'),
+                'subcategory_id': prediction_result.get('subcategory_id'),
+                'model_type': 'custom'
+            }
+
+            return Response(prediction)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ExpenseModelMetricsView(APIView):
+    """
+    API endpoint for getting expense model metrics.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            # Get the expense AI service
+            expense_service = get_expense_ai_service()
+
+            # Get model metrics
+            metrics = expense_service.get_model_metrics()
+
+            return Response(metrics)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ExpenseModelTrainingView(APIView):
+    """
+    API endpoint for training the expense model.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        use_baseline = request.data.get('use_baseline', False)
+        reset_model = request.data.get('reset_model', False)
+
+        try:
+            # Get the expense AI service
+            expense_service = get_expense_ai_service()
+
+            # Train the model with the provided options
+            if reset_model:
+                result = expense_service.reset_model()
+            elif use_baseline:
+                result = expense_service.train_with_baseline()
+            else:
+                result = expense_service.train()
+
+            return Response(result)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class GeminiPredictionView(APIView):
+    """
+    API endpoint for generating predictions using Gemini AI.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        description = request.data.get('description', '').strip()
+
+        # Validate input
+        if not description:
+            return Response(
+                {'error': 'Description is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Get the Gemini AI service
+            gemini_service = get_gemini_ai_service()
+
+            # Get categories from the database
+            from expenses.models import Category, SubCategory
+            categories = Category.objects.all()
+            subcategories = SubCategory.objects.all()
+
+            # Create labels in "Category - Subcategory" format
+            labels = [
+                f"{category.name} - {subcategory.name}"
+                for category in categories
+                for subcategory in subcategories.filter(category=category)
+            ]
+
+            if not labels:
+                return Response(
+                    {'error': 'No categories or subcategories found'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Make prediction using the predict_category method
+            prediction_result = gemini_service.predict_category(description, labels)
+
+            # Create a new prediction object with the expected keys
+            prediction = {
+                'category_name': prediction_result['category'],
+                'subcategory_name': prediction_result['subcategory'],
+                'confidence': prediction_result.get('confidence', 0.85),  # Default confidence if not provided
+                'model_type': 'gemini'
+            }
+
+            # Get category and subcategory IDs
+            try:
+                category_name = prediction_result['category']
+                subcategory_name = prediction_result['subcategory']
+
+                category = Category.objects.get(name=category_name)
+                subcategory = SubCategory.objects.get(name=subcategory_name, category=category)
+
+                # Add IDs to the response
+                prediction['category_id'] = category.id
+                prediction['subcategory_id'] = subcategory.id
+            except (Category.DoesNotExist, SubCategory.DoesNotExist):
+                # If the predicted category doesn't exist, use Unknown - Other
+                try:
+                    category = Category.objects.get(name='Unknown')
+                    subcategory = SubCategory.objects.get(name='Other', category=category)
+
+                    prediction['category_id'] = category.id
+                    prediction['subcategory_id'] = subcategory.id
+                except (Category.DoesNotExist, SubCategory.DoesNotExist):
+                    # If Unknown - Other doesn't exist, don't add IDs
+                    pass
+
+            return Response(prediction)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class GeminiChatView(APIView):
+    """
+    API endpoint for generating chatbot responses using Gemini AI.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        message = request.data.get('message', '').strip()
+        context = request.data.get('context', [])
+
+        # Validate input
+        if not message:
+            return Response(
+                {'error': 'Message is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Get the Gemini AI service
+            gemini_service = get_gemini_ai_service()
+
+            # Get chatbot response
+            response = gemini_service.get_chatbot_response(message, context)
+
+            return Response(response)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class InvestmentPredictionView(APIView):
+    """
+    API endpoint for generating investment recommendations.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user_profile = request.data.get('user_profile', {})
+        recommender_type = request.data.get('recommender_type', 'advanced')
+
+        # Validate input
+        if not user_profile:
+            return Response(
+                {'error': 'User profile is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Get the investment AI service
+            investment_service = get_investment_ai_service()
+
+            # Prepare input data
+            input_data = {
+                'user_profile': user_profile,
+                'recommender_type': recommender_type
+            }
+
+            # Make prediction
+            recommendations = investment_service.predict(input_data)
+
+            return Response(recommendations)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class InvestmentPortfolioAnalysisView(APIView):
+    """
+    API endpoint for analyzing investment portfolios.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, portfolio_id, *args, **kwargs):
+        try:
+            # Get the portfolio
+            portfolio = get_object_or_404(Portfolio, id=portfolio_id)
+
+            # Get the investment AI service
+            investment_service = get_investment_ai_service()
+
+            # Analyze the portfolio
+            analysis = investment_service.analyze_portfolio(portfolio)
+
+            return Response(analysis)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class InvestmentExpenseRecommendationsView(APIView):
+    """
+    API endpoint for generating expense-based investment recommendations.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id, *args, **kwargs):
+        try:
+            # Get the user profile
+            user_profile = get_object_or_404(UserProfile, id=user_id)
+
+            # Get the investment AI service
+            investment_service = get_investment_ai_service()
+
+            # Get expense-based recommendations
+            recommendations = investment_service.get_expense_based_recommendations(user_profile)
+
+            return Response(recommendations)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class AIServiceInfoView(APIView):
+    """
+    API endpoint for getting information about the AI services.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            # Get information about all AI services
+            info = ai_service_factory.get_service_info()
+
+            return Response(info)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
