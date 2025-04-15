@@ -1,4 +1,4 @@
-# Expense Categorization and Investment RecommendationAPI
+# Expense Categorization and Investment Recommendation API
 
 This is the backend API for the Expense Categorization and Investment Recommendation application, built with Django REST Framework.
 
@@ -21,7 +21,7 @@ Follow these steps to set up and run the backend server:
 - pip (Python package manager)
 - Virtual environment tool (venv)
 
-### Setup Commands(WIN)
+### Setup Commands (WIN)
 
 ```bash
 # 1. Create a virtual environment
