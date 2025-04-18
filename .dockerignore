@@ -24,3 +24,6 @@ var/
 .venv/
 venv/
 ENV/
+
+# Exclude Windows-specific packages
+pywin32*
