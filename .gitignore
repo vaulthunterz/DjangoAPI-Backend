@@ -8,6 +8,7 @@ venv/
 
 .env
 .env.prod
+.env.yaml
 
 # Ignore Django-specific files
 db.sqlite3
@@ -22,3 +23,5 @@ logs/
 serviceAccountKey.json
 
 .idea/
+
+deploy-to-cloud-run.sh
