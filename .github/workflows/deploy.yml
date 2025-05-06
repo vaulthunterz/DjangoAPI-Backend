@@ -1,0 +1,65 @@
+name: Deploy Django Financial App to EC2
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run collectstatic
+      run: |
+        echo "AWS_STORAGE_BUCKET_NAME=${{ secrets.AWS_STORAGE_BUCKET_NAME }}" >> $GITHUB_ENV
+        echo "AWS_S3_REGION_NAME=${{ secrets.AWS_S3_REGION_NAME }}" >> $GITHUB_ENV
+        echo "CLOUDFRONT_DOMAIN=${{ secrets.CLOUDFRONT_DOMAIN }}" >> $GITHUB_ENV
+        python manage.py collectstatic --noinput
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    # If collectstatic does not push directly to S3, uncomment the following step:
+    # - name: Sync static files to S3
+    #   run: |
+    #     aws s3 sync <path_to_your_static_root_output> s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/static/ --delete
+
+    - name: Deploy to EC2
+      run: |
+        COMMANDS=$(cat <<EOF
+        cd /srv/financial-app
+        git fetch origin master
+        git reset --hard origin/master
+        source venv/bin/activate
+        pip install -r requirements.txt
+        eval \$(python3 load_params.py)
+        python3 manage.py migrate --noinput
+        sudo systemctl restart gunicorn
+        sudo systemctl restart celery-worker
+        echo "Deployment completed successfully"
+        EOF
+        )
+
+        aws ssm send-command \
+          --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
+          --document-name "AWS-RunShellScript" \
+          --parameters "commands=[${COMMANDS//$'\\n'/','}]" \
+          --comment "Deploying new version of Financial App" \
+          --output text 
