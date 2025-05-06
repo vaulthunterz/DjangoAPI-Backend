@@ -14,7 +14,7 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)  # Nested user serialization
     user_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(), source='user', write_only=True
+        queryset=User.objects.all(), source='user', write_only=True, required=False
     )
     class Meta:
         model = UserProfile
@@ -39,7 +39,7 @@ class PortfolioSerializer(serializers.ModelSerializer):
     items = PortfolioItemSerializer(many=True, read_only=True)  # Nested items (read-only)
     user = UserProfileSerializer(read_only = True) #Show userprofile
     user_id = serializers.PrimaryKeyRelatedField(
-        queryset = UserProfile.objects.all(), source = 'user', write_only = True
+        queryset = UserProfile.objects.all(), source = 'user', write_only = True, required=False
     )
     class Meta:
         model = Portfolio

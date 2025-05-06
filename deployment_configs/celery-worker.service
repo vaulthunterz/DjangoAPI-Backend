@@ -1,0 +1,23 @@
+[Unit]
+Description=Celery Worker for financial-app
+After=network.target gunicorn.service # Start after network and gunicorn
+Requires=gunicorn.service # Optional: If worker depends on web app being up
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/srv/financial-app
+
+# Activate venv, load params, start worker
+# Make sure '-A ExpenseCategorizationAPI' points to your Django project where celery.py is defined
+ExecStart=/bin/bash -c 'source /srv/financial-app/venv/bin/activate && \
+         eval $(/srv/financial-app/venv/bin/python3 /srv/financial-app/load_params.py) && \
+         /srv/financial-app/venv/bin/celery -A ExpenseCategorizationAPI worker -c 1 --loglevel=INFO'
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/srv/financial-app/logs/celery-worker.log
+StandardError=append:/srv/financial-app/logs/celery-worker.log
+
+[Install]
+WantedBy=multi-user.target

@@ -14,16 +14,40 @@ from pathlib import Path
 import firebase_admin
 
 # Load environment variables from .env file
-from dotenv import load_dotenv
-load_dotenv()
+# from dotenv import load_dotenv
+# load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-STATIC_URL = '/static/'
+# AWS S3 STATICFILES CONFIGURATION
+# ------------------------------------------------------------------------------
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
+AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'af-south-1')
+CLOUDFRONT_DOMAIN = os.environ.get('CLOUDFRONT_DOMAIN')
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+AWS_LOCATION = 'static'
+# STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+STATICFILES_STORAGE = 'ExpenseCategorizationAPI.custom_storage.StaticS3Storage'
 
-# Set STATIC_ROOT to a valid path where static files will be collected
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# --- MODIFY STATIC_URL ---
+if CLOUDFRONT_DOMAIN:
+    STATIC_URL = f'https://{CLOUDFRONT_DOMAIN}/{AWS_LOCATION}/' # Use CloudFront
+    print(f"INFO: Using CloudFront STATIC_URL: {STATIC_URL}") # Optional: Add print for verification
+elif AWS_STORAGE_BUCKET_NAME: # Fallback to S3 domain if CF isn't set
+    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
+    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
+    print(f"INFO: Using S3 STATIC_URL: {STATIC_URL}") # Optional: Add print for verification
+else:
+    STATIC_URL = '/static/' # Local fallback
+# --- END MODIFY STATIC_URL ---
+
+# Ensure STATIC_ROOT is defined for local use if needed, but ignored by S3 collectstatic
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles_local')
+# ------------------------------------------------------------------------------
 
 LOGIN_URL = '/admin/login/'
 
@@ -34,10 +58,46 @@ LOGIN_URL = '/admin/login/'
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-7y5#q$)6kh5@w2bt@+xh)6rf0ouz3hvg+8r4v+y==(3%5#5q)0')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 # Parse ALLOWED_HOSTS from environment variable or use default
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
+# Remove empty strings that result from a blank env var or trailing commas
+ALLOWED_HOSTS = [host for host in ALLOWED_HOSTS if host]
+
+# settings.py (Additions for HTTPS Security)
+
+# Tell Django to trust the X-Forwarded-Proto header from Nginx
+# This is crucial for request.is_secure() to work correctly behind the proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Redirect all non-HTTPS requests to HTTPS (provides an extra layer of security)
+SECURE_SSL_REDIRECT = True
+
+# Ensure session cookies are only sent over HTTPS
+SESSION_COOKIE_SECURE = True
+
+# Ensure CSRF cookies are only sent over HTTPS
+CSRF_COOKIE_SECURE = True
+
+CSRF_COOKIE_HTTPONLY = True
+
+# --- HSTS Settings (HTTP Strict Transport Security) ---
+# Instruct browsers to *only* use HTTPS for this site for the specified duration.
+# Start with a smaller value (e.g., 3600 = 1 hour) for testing if you prefer,
+# then increase to a large value like 31536000 (1 year) once confident.
+SECURE_HSTS_SECONDS = 3600 # 1 hour (adjust later)
+
+# Set to True only if *all* subdomains (like www) are and will always be HTTPS.
+# False is safer initially if unsure.
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+
+# Set to True only after confirming everything works and considering submission
+# to browser preload lists. Requires SECURE_HSTS_INCLUDE_SUBDOMAINS=True.
+SECURE_HSTS_PRELOAD = False
+# --- End HSTS Settings ---
+
+
 
 # Application definition
 
@@ -48,6 +108,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
     'rest_framework',
     'expenses.apps.ExpensesConfig',
     'investment',
@@ -94,14 +155,21 @@ WSGI_APPLICATION = 'ExpenseCategorizationAPI.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 # Specify your db details in .env, if .env fails, fall back to defaults
 
+# Find the DATABASES dictionary:
 DATABASES = {
     'default': {
-        'ENGINE': os.environ.get('DB_ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.environ.get('DB_NAME', 'expense_tracker_db'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', '8844'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5430'),
+        # Change ENGINE to read from env, remove default
+        'ENGINE': os.environ.get('DB_ENGINE'),
+        # Change NAME to read from env, remove default
+        'NAME': os.environ.get('DB_NAME'),
+        # Change USER to read from env, remove default
+        'USER': os.environ.get('DB_USER'),
+        # Change PASSWORD to read from env, remove default
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        # Change HOST to read from env, remove default
+        'HOST': os.environ.get('DB_HOST'),
+        # Change PORT to read from env, remove default
+        'PORT': os.environ.get('DB_PORT'),
     }
 }
 
@@ -228,16 +296,37 @@ CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
 
-# --- CELERY ---
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Or your Redis URL
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# --- CELERY CONFIGURATION (for SQS Broker) ---
+# Read broker URL from environment variable (set via load_params.py from SSM)
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') # Reads 'sqs://' from SSM
+CELERY_TASK_CREATE_MISSING_QUEUES = False # Explicitly disable auto-creation
+
+# SQS Specific Broker Transport Options
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'region': 'af-south-1',
+    'visibility_timeout': 3600,
+    'polling_interval': 1,
+    'predefined_queues': {
+        'celery': { # This is the default queue name Celery looks for
+            'url': 'https://sqs.af-south-1.amazonaws.com/961341546632/financial-app-celery-queue', # <-- PASTE YOUR QUEUE URL HERE
+            # 'access_key_id': None, # Not needed with IAM role
+            # 'secret_access_key': None, # Not needed with IAM role
+        }
+    }
+}
+
+# Disable Result Backend for now (simplest)
+CELERY_RESULT_BACKEND = None
+
+# Keep your other Celery settings if they were correct
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'Africa/Nairobi'  # Set your timezone
+CELERY_TIMEZONE = 'Africa/Nairobi'
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_SEND_SENT_EVENT = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+# --- END CELERY CONFIGURATION ---
 
 # Check if Firebase is properly initialized
 try:

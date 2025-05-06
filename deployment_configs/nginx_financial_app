@@ -1,0 +1,55 @@
+# /etc/nginx/sites-available/financial_app
+# Configuration for the Financial Management Django App
+
+server {
+    server_name fintrackke.com www.fintrackke.com;
+
+    access_log /var/log/nginx/financial_app_access.log;
+    error_log /var/log/nginx/financial_app_error.log;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    location / {
+        # Remove include proxy_params; to avoid potential conflicts
+        # include proxy_params;
+
+        # Explicitly set all required proxy headers
+        proxy_set_header Host $http_host; # Reverting to $http_host as $server_name didn't help
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Forward the request to the Gunicorn socket
+        proxy_pass http://unix:/srv/financial-app/financial_app.sock;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/fintrackke.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/fintrackke.com/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+}
+
+
+
+server {
+    if ($host = www.fintrackke.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    if ($host = fintrackke.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name fintrackke.com www.fintrackke.com;
+    return 404; # managed by Certbot
+
+
+
+
+}

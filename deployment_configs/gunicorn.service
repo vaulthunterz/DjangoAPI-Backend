@@ -1,0 +1,29 @@
+[Unit]
+Description=gunicorn daemon for financial-app
+# Start this service only after the network is available
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+
+# The main project directory
+WorkingDirectory=/srv/financial-app
+
+# Path to the virtual environment Gunicorn executable
+# Reverted back to original ExecStart to include loading parameters
+ExecStart=/bin/bash -c 'eval $(/srv/financial-app/venv/bin/python3 /srv/financial-app/load_params.py) && /srv/financial-app/venv/bin/gunicorn --workers 2 --bind unix:/srv/financial-app/financial_app.sock ExpenseCategorizationAPI.wsgi:application'
+
+# Restart the service if it fails
+Restart=on-failure
+# Wait a few seconds before restarting
+RestartSec=5
+
+StandardOutput=append:/srv/financial-app/logs/gunicorn.log
+StandardError=append:/srv/financial-app/logs/gunicorn.log
+
+[Install]
+# Enable the service to start at boot time in the multi-user target
+WantedBy=multi-user.target
+
+

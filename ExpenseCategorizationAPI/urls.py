@@ -20,7 +20,7 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('manage-site-fintrackke/', admin.site.urls),
     path('api/expenses/', include('expenses.urls')),
     # Investment URLs are now enabled with fixed relative imports
     path('api/investment/', include('investment.urls')),
