@@ -30,26 +30,26 @@ jobs:
 
     # Step 4: Run collectstatic
     - name: Run collectstatic
-      env: # Make secrets and necessary env vars available for this step
-        # AWS Credentials for django-storages (if not using instance profile for collectstatic)
-        # These are needed if your settings.py tries to connect to S3 during import/setup
+      env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
-        AWS_S3_REGION_NAME: ${{ secrets.AWS_S3_REGION_NAME }} # Ensure this matches your bucket region
+        AWS_S3_REGION_NAME: ${{ secrets.AWS_S3_REGION_NAME }} # CRITICAL: Ensure this secret is set correctly in GitHub to your bucket's region (e.g., af-south-1)
         CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
-        # Required by settings.py to avoid raising an error
-        SECRET_KEY: "dummy-secret-key-for-collectstatic" # A non-empty dummy key is usually fine for collectstatic
-        DEBUG: "False" # Ensure DEBUG is False for collectstatic
-        # Add any other environment variables your settings.py might expect to be present
-        # even if they are not directly used by collectstatic, to prevent load-time errors.
-        # For example, if database settings are accessed at import time:
-        # DB_ENGINE: "django.db.backends.postgresql" # Dummy value if not actually connecting
-        # DB_NAME: "dummy_db"
-        # etc.
-        # CELERY_SQS_QUEUE_URL: "dummy_sqs_url_for_collectstatic" # If settings.py tries to read it
+        SECRET_KEY: "dummy-secret-key-for-collectstatic"
+        DEBUG: "False"
+        # Add dummy values for other settings if settings.py prints warnings for them
+        ALLOWED_HOSTS: "localhost,fintrackke.com" # Dummy/actual value, not critical for collectstatic logic itself
+        CORS_ALLOWED_ORIGINS: "https://fintrackke.com" # Dummy/actual value
+        # Ensure all other os.environ.get() calls in settings.py have defaults or are provided
+        # if they are evaluated when settings are loaded for collectstatic.
+        # For example, database vars are not needed for collectstatic usually.
+        # CELERY_SQS_QUEUE_URL: "dummy" # If settings.py tries to read it
+        # FIREBASE_SERVICE_ACCOUNT_PATH: "/dev/null" # If settings.py tries to read it
+        # GEMINI_API_KEY: "dummy"
       run: |
         echo "Running collectstatic..."
+        echo "AWS_S3_REGION_NAME for collectstatic is: $AWS_S3_REGION_NAME" # Debug print
         python manage.py collectstatic --noinput
         echo "Collectstatic finished."
 
@@ -59,11 +59,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
-
-    # Step 6: Sync static files to S3 (This step is now primarily handled by collectstatic with django-storages)
-    # The collectstatic step above, when using S3Boto3Storage, should directly upload to S3.
-    # No separate sync step is typically needed if STATICFILES_STORAGE is correctly configured.
+        aws-region: ${{ secrets.AWS_REGION }} # This is for the AWS CLI commands, should match your target region
 
     # Step 7: Deploy to EC2 using AWS SSM Run Command
     - name: Deploy to EC2
@@ -106,9 +102,3 @@ jobs:
           --parameters "$JSON_PARAMS_PAYLOAD" \
           --comment "Deploying new version of Financial App via GitHub Actions" \
           --output text
-
-    # Optional: Add a step to check command status if needed
-    # - name: Check SSM Command Status
-    #   run: |
-    #     # Add logic to wait and check the status of the send-command invocation
-    #     echo "Deployment script sent. Check SSM console for execution status."
