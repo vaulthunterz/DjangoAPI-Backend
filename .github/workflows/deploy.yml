@@ -1,34 +1,50 @@
+# .github/workflows/deploy.yml
+
 name: Deploy Django Financial App to EC2
 
+# Controls when the workflow will run
 on:
   push:
-    branches: [ master ]
+    branches: [ master ] # Trigger on pushes to the master branch
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner provided by GitHub
 
     steps:
+    # Step 1: Checkout the repository code
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # Step 2: Set up Python environment
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.12' # Match the Python version on your EC2 instance
 
+    # Step 3: Install Python dependencies
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    # Step 4: Run collectstatic
     - name: Run collectstatic
+      env: # Make secrets available as environment variables for this step
+        AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
+        AWS_S3_REGION_NAME: ${{ secrets.AWS_S3_REGION_NAME }}
+        CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
+        # Add any other environment variables settings.py might need for collectstatic
+        # For example, if SECRET_KEY or DEBUG is read during settings load for collectstatic:
+        # SECRET_KEY: "dummy_secret_key_for_collectstatic"
+        # DEBUG: "False"
+        # Ensure your load_params.py doesn't run or fail here.
+        # Best practice is for settings.py to gracefully handle missing non-critical env vars
+        # or for collectstatic to not require them.
       run: |
-        echo "AWS_STORAGE_BUCKET_NAME=${{ secrets.AWS_STORAGE_BUCKET_NAME }}" >> $GITHUB_ENV
-        echo "AWS_S3_REGION_NAME=${{ secrets.AWS_S3_REGION_NAME }}" >> $GITHUB_ENV
-        echo "CLOUDFRONT_DOMAIN=${{ secrets.CLOUDFRONT_DOMAIN }}" >> $GITHUB_ENV
         python manage.py collectstatic --noinput
 
+    # Step 5: Configure AWS credentials
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -36,13 +52,16 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    # If collectstatic does not push directly to S3, uncomment the following step:
+    # Step 6: Sync static files to S3 (This step is now handled by collectstatic with django-storages)
+    # If collectstatic was configured to output locally, you would use:
     # - name: Sync static files to S3
     #   run: |
-    #     aws s3 sync <path_to_your_static_root_output> s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/static/ --delete
+    #     aws s3 sync <local_static_output_dir>/ s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/static/ --delete
 
+    # Step 7: Deploy to EC2 using AWS SSM Run Command
     - name: Deploy to EC2
       run: |
+        # Define commands as a multi-line string
         COMMANDS=$(cat <<EOF
         cd /srv/financial-app
         git fetch origin master
@@ -57,9 +76,17 @@ jobs:
         EOF
         )
 
+        # Send commands to EC2 instance via SSM Run Command
+        # Corrected --parameters format for StringList
         aws ssm send-command \
           --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
           --document-name "AWS-RunShellScript" \
-          --parameters "commands=[${COMMANDS//$'\\n'/','}]" \
+          --parameters "commands=${COMMANDS//$'\\n'/','}" \
           --comment "Deploying new version of Financial App" \
-          --output text 
+          --output text
+
+    # Optional: Add a step to check command status if needed
+    # - name: Check SSM Command Status
+    #   run: |
+    #     # Add logic to wait and check the status of the send-command invocation
+    #     echo "Deployment script sent. Check SSM console for execution status."
