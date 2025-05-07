@@ -30,39 +30,46 @@ jobs:
 
     # Step 4: Run collectstatic
     - name: Run collectstatic
-      env: # Make secrets available as environment variables for this step
+      env: # Make secrets and necessary env vars available for this step
+        # AWS Credentials for django-storages (if not using instance profile for collectstatic)
+        # These are needed if your settings.py tries to connect to S3 during import/setup
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
-        AWS_S3_REGION_NAME: ${{ secrets.AWS_S3_REGION_NAME }}
+        AWS_S3_REGION_NAME: ${{ secrets.AWS_S3_REGION_NAME }} # Ensure this matches your bucket region
         CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
-        # Add any other environment variables settings.py might need for collectstatic
-        # For example, if SECRET_KEY or DEBUG is read during settings load for collectstatic:
-        # SECRET_KEY: "dummy_secret_key_for_collectstatic_workflow" # Provide a dummy or actual if safe
-        # DEBUG: "False"
-        # Ensure your load_params.py doesn't run or fail here.
-        # Best practice is for settings.py to gracefully handle missing non-critical env vars
-        # or for collectstatic to not require them.
+        # Required by settings.py to avoid raising an error
+        SECRET_KEY: "dummy-secret-key-for-collectstatic" # A non-empty dummy key is usually fine for collectstatic
+        DEBUG: "False" # Ensure DEBUG is False for collectstatic
+        # Add any other environment variables your settings.py might expect to be present
+        # even if they are not directly used by collectstatic, to prevent load-time errors.
+        # For example, if database settings are accessed at import time:
+        # DB_ENGINE: "django.db.backends.postgresql" # Dummy value if not actually connecting
+        # DB_NAME: "dummy_db"
+        # etc.
+        # CELERY_SQS_QUEUE_URL: "dummy_sqs_url_for_collectstatic" # If settings.py tries to read it
       run: |
+        echo "Running collectstatic..."
         python manage.py collectstatic --noinput
+        echo "Collectstatic finished."
 
-    # Step 5: Configure AWS credentials
-    - name: Configure AWS Credentials
+    # Step 5: Configure AWS credentials (for subsequent AWS CLI commands like SSM)
+    - name: Configure AWS Credentials for Deployment
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    # Step 6: Sync static files to S3 (This step is now handled by collectstatic with django-storages)
-    # If collectstatic was configured to output locally, you would use:
-    # - name: Sync static files to S3
-    #   run: |
-    #     aws s3 sync <local_static_output_dir>/ s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/static/ --delete
+    # Step 6: Sync static files to S3 (This step is now primarily handled by collectstatic with django-storages)
+    # The collectstatic step above, when using S3Boto3Storage, should directly upload to S3.
+    # No separate sync step is typically needed if STATICFILES_STORAGE is correctly configured.
 
     # Step 7: Deploy to EC2 using AWS SSM Run Command
     - name: Deploy to EC2
       run: |
-        # Define the commands as a heredoc
-        COMMANDS_HEREDOC="""
+        # Define commands as a multi-line string (heredoc)
+        COMMANDS_HEREDOC=$(cat <<EOF
         cd /srv/financial-app
         git fetch origin master
         git reset --hard origin/master
@@ -72,33 +79,32 @@ jobs:
         python3 manage.py migrate --noinput
         sudo systemctl restart gunicorn
         sudo systemctl restart celery-worker
-        echo \"Deployment completed successfully\"
-        """
+        echo "Deployment completed successfully on EC2"
+        EOF
+        )
 
-        # Build a JSON array string for the commands
-        JSON_PARAMS_PAYLOAD='{"commands":['
-        FIRST=1
+        # Prepare commands for JSON array format
+        JSON_PARAMS_PAYLOAD="{\"commands\":["
+        FIRST_CMD=true
         while IFS= read -r cmd; do
-          # Skip empty lines
-          [ -z "$cmd" ] && continue
-          # Escape backslashes and double quotes
-          ESCAPED_CMD=$(echo "$cmd" | sed 's/\\/\\\\/g' | sed 's/\"/\\\"/g')
-          if [ $FIRST -eq 1 ]; then
-            JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD\"$ESCAPED_CMD\""
-            FIRST=0
+          if [ "$FIRST_CMD" = true ]; then
+            FIRST_CMD=false
           else
-            JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD,\"$ESCAPED_CMD\""
+            JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD,"
           fi
+          ESCAPED_CMD=$(echo "$cmd" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+          JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD\"$ESCAPED_CMD\""
         done <<< "$COMMANDS_HEREDOC"
-        JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD] }"
+        JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD]}"
+        
+        echo "Final JSON for SSM: $JSON_PARAMS_PAYLOAD" # For debugging
 
-        echo "Final JSON for SSM: $JSON_PARAMS_PAYLOAD"
-
+        # Send commands to EC2 instance via SSM Run Command
         aws ssm send-command \
           --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
           --document-name "AWS-RunShellScript" \
           --parameters "$JSON_PARAMS_PAYLOAD" \
-          --comment "Deploying new version of Financial App" \
+          --comment "Deploying new version of Financial App via GitHub Actions" \
           --output text
 
     # Optional: Add a step to check command status if needed
