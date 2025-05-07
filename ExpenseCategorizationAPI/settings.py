@@ -44,7 +44,7 @@ if AWS_STORAGE_BUCKET_NAME and CLOUDFRONT_DOMAIN:
     STATIC_URL = f'https://{CLOUDFRONT_DOMAIN}/{AWS_LOCATION}/'
 
     # This tells django-storages to use the CloudFront domain for generating static file URLs
-    AWS_S3_CUSTOM_DOMAIN = CLOUDFRONT_DOMAIN
+    # AWS_S3_CUSTOM_DOMAIN = CLOUDFRONT_DOMAIN
 
     # Optional: S3 object parameters like Cache-Control
     AWS_S3_OBJECT_PARAMETERS = {
