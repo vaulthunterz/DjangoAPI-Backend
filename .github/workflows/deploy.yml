@@ -27,39 +27,32 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # Step 4: Configure AWS Credentials (Moved BEFORE collectstatic)
-    # This makes credentials available via standard env vars for boto3/django-storages
+    # Step 4: Configure AWS Credentials
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }} # Use the region secret for consistency
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    # Step 5: Run collectstatic
+    # Step 5: Run collectstatic with high verbosity
     - name: Run collectstatic
       env:
-        # These are needed for settings.py to load and configure django-storages correctly
         AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
-        # AWS_S3_REGION_NAME is usually picked up automatically by boto3 from credentials action now
+        AWS_S3_REGION_NAME: ${{ secrets.AWS_S3_REGION_NAME }} # Ensure this secret is correct
         CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
         SECRET_KEY: "dummy-secret-key-for-collectstatic"
         DEBUG: "False"
-        ALLOWED_HOSTS: "localhost,fintrackke.com" # Dummy/actual value
-        CORS_ALLOWED_ORIGINS: "https://fintrackke.com" # Dummy/actual value
-        # Add other non-sensitive env vars needed only for settings.py to load, if any
-        # CELERY_SQS_QUEUE_URL: "dummy"
-        # FIREBASE_SERVICE_ACCOUNT_PATH: "/dev/null"
-        # GEMINI_API_KEY: "dummy"
-        # DB vars usually not needed for collectstatic
+        ALLOWED_HOSTS: "localhost,fintrackke.com"
+        CORS_ALLOWED_ORIGINS: "https://fintrackke.com"
+        # Add other dummy env vars if settings.py requires them on load
       run: |
         echo "Running collectstatic..."
-        # boto3 should now pick up credentials configured in the previous step
-        python manage.py collectstatic --noinput
+        echo "AWS_S3_REGION_NAME for collectstatic is: $AWS_S3_REGION_NAME"
+        python manage.py collectstatic --noinput -v 3 # <-- Increased verbosity
         echo "Collectstatic finished."
 
     # Step 6: Deploy to EC2 using AWS SSM Run Command
-    # Note: Credentials configured in Step 4 are still available for this step
     - name: Deploy to EC2
       run: |
         # Define commands as a multi-line string (heredoc)
