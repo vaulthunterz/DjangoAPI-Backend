@@ -3,82 +3,121 @@
 name: Deploy Django Financial App to EC2
 
 on:
+  # Triggers the workflow on push events but only for the master branch
   push:
     branches: [ master ]
 
 jobs:
+  # This workflow contains a single job called "deploy"
   deploy:
+    # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
+    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Step 1: Checkout code
+    # Step 1: Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # Step 2: Set up Python
+    # Step 2: Set up Python environment
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.12' # Match the Python version on your EC2 instance
 
-    # Step 3: Install dependencies
+    # Step 3: Install Python dependencies
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
     # Step 4: Configure AWS Credentials
+    # Needed for both collectstatic (if it interacts with S3) AND aws s3 sync
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        aws-region: ${{ secrets.AWS_REGION }} # Use the region secret for consistency
 
-    # Step 5: Run collectstatic with high verbosity
+    # Step 5: Run collectstatic (Collects files locally to STATIC_ROOT)
     - name: Run collectstatic
       env:
+        # Provide necessary env vars for settings.py to load without errors
         AWS_STORAGE_BUCKET_NAME: ${{ secrets.AWS_STORAGE_BUCKET_NAME }}
         AWS_S3_REGION_NAME: ${{ secrets.AWS_S3_REGION_NAME }} # Ensure this secret is correct
         CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
-        SECRET_KEY: "dummy-secret-key-for-collectstatic"
-        DEBUG: "False"
-        ALLOWED_HOSTS: "localhost,fintrackke.com"
-        CORS_ALLOWED_ORIGINS: "https://fintrackke.com"
-        # Add other dummy env vars if settings.py requires them on load
+        SECRET_KEY: "dummy-secret-key-for-collectstatic" # Dummy key is fine here
+        DEBUG: "False" # Must be False for production settings
+        ALLOWED_HOSTS: "localhost,fintrackke.com" # Dummy value, not critical for collectstatic logic itself
+        CORS_ALLOWED_ORIGINS: "https://fintrackke.com" # Dummy value
+        # Add other dummy env vars if settings.py requires them on load and would error if missing
+        # DB_ENGINE: "dummy" # Database connection usually not needed for collectstatic
+        # CELERY_SQS_QUEUE_URL: "dummy"
+        # FIREBASE_SERVICE_ACCOUNT_PATH: "/dev/null"
+        # GEMINI_API_KEY: "dummy"
       run: |
-        echo "Running collectstatic..."
-        echo "AWS_S3_REGION_NAME for collectstatic is: $AWS_S3_REGION_NAME"
-        python manage.py collectstatic --noinput -v 3 # <-- Increased verbosity
-        echo "Collectstatic finished."
+        echo "Running collectstatic to gather files locally..."
+        # This will collect files into the directory defined by STATIC_ROOT in settings.py
+        # which is currently '/home/runner/work/DjangoAPI-Backend/DjangoAPI-Backend/staticfiles_local_temp_collection'
+        python manage.py collectstatic --noinput -v 3 # Use verbosity to see details
+        echo "Collectstatic finished gathering files."
 
-    # Step 6: Deploy to EC2 using AWS SSM Run Command
+    # Step 6: Sync static files to S3 using AWS CLI
+    # Uploads the contents of the local STATIC_ROOT to the correct S3 prefix
+    - name: Sync static files to S3
+      run: |
+        echo "Syncing files from local STATIC_ROOT to S3..."
+        # Define the local static root path based on settings.py and runner workspace
+        LOCAL_STATIC_ROOT="/home/runner/work/DjangoAPI-Backend/DjangoAPI-Backend/staticfiles_local_temp_collection"
+        # Define the S3 destination prefix based on settings.py AWS_LOCATION
+        S3_DESTINATION_PREFIX="static" # From AWS_LOCATION = 'static'
+
+        echo "Local source: ${LOCAL_STATIC_ROOT}/"
+        echo "S3 destination: s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/${S3_DESTINATION_PREFIX}/"
+
+        # Sync the *contents* of the local dir to s3://<bucket>/static/
+        # The trailing slashes are important for syncing contents.
+        aws s3 sync "${LOCAL_STATIC_ROOT}/" "s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/${S3_DESTINATION_PREFIX}/" --delete
+
+    # Step 7: Deploy to EC2 using AWS SSM Run Command
     - name: Deploy to EC2
       run: |
         # Define commands as a multi-line string (heredoc)
         COMMANDS_HEREDOC=$(cat <<EOF
         cd /srv/financial-app
+        echo "Fetching latest code from master..."
         git fetch origin master
+        echo "Resetting local branch to origin/master..."
         git reset --hard origin/master
+        echo "Activating virtual environment..."
         source venv/bin/activate
+        echo "Installing/updating Python dependencies..."
         pip install -r requirements.txt
+        echo "Loading environment variables..."
         eval \$(python3 load_params.py)
+        echo "Running database migrations..."
         python3 manage.py migrate --noinput
+        echo "Restarting Gunicorn service..."
         sudo systemctl restart gunicorn
+        echo "Restarting Celery worker service..."
         sudo systemctl restart celery-worker
         echo "Deployment completed successfully on EC2"
         EOF
         )
 
-        # Prepare commands for JSON array format
+        # Prepare commands for JSON array format required by --parameters
         JSON_PARAMS_PAYLOAD="{\"commands\":["
         FIRST_CMD=true
         while IFS= read -r cmd; do
+          # Skip empty lines
+          if [ -z "$cmd" ]; then continue; fi
           if [ "$FIRST_CMD" = true ]; then
             FIRST_CMD=false
           else
             JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD,"
           fi
+          # Escape backslashes and double quotes within the command string
           ESCAPED_CMD=$(echo "$cmd" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
           JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD\"$ESCAPED_CMD\""
         done <<< "$COMMANDS_HEREDOC"
@@ -93,3 +132,10 @@ jobs:
           --parameters "$JSON_PARAMS_PAYLOAD" \
           --comment "Deploying new version of Financial App via GitHub Actions" \
           --output text
+
+    # Optional: Add a step to check command status if needed
+    # - name: Check SSM Command Status
+    #   run: |
+    #     # Add logic to wait and check the status of the send-command invocation
+    #     echo "Deployment script sent. Check SSM console for execution status."
+
