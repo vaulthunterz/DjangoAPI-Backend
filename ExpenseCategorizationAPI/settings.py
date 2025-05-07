@@ -31,7 +31,7 @@ AWS_S3_OBJECT_PARAMETERS = {
 }
 AWS_LOCATION = 'static'
 # STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-STATICFILES_STORAGE = 'ExpenseCategorizationAPI.custom_storage.StaticS3Storage'
+STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # --- MODIFY STATIC_URL ---
 if CLOUDFRONT_DOMAIN:
