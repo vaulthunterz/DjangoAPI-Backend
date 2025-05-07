@@ -36,7 +36,7 @@ jobs:
         CLOUDFRONT_DOMAIN: ${{ secrets.CLOUDFRONT_DOMAIN }}
         # Add any other environment variables settings.py might need for collectstatic
         # For example, if SECRET_KEY or DEBUG is read during settings load for collectstatic:
-        # SECRET_KEY: "dummy_secret_key_for_collectstatic"
+        # SECRET_KEY: "dummy_secret_key_for_collectstatic_workflow" # Provide a dummy or actual if safe
         # DEBUG: "False"
         # Ensure your load_params.py doesn't run or fail here.
         # Best practice is for settings.py to gracefully handle missing non-critical env vars
@@ -61,8 +61,8 @@ jobs:
     # Step 7: Deploy to EC2 using AWS SSM Run Command
     - name: Deploy to EC2
       run: |
-        # Define commands as a multi-line string
-        COMMANDS=$(cat <<EOF
+        # Define the commands as a heredoc
+        COMMANDS_HEREDOC="""
         cd /srv/financial-app
         git fetch origin master
         git reset --hard origin/master
@@ -72,16 +72,32 @@ jobs:
         python3 manage.py migrate --noinput
         sudo systemctl restart gunicorn
         sudo systemctl restart celery-worker
-        echo "Deployment completed successfully"
-        EOF
-        )
+        echo \"Deployment completed successfully\"
+        """
 
-        # Send commands to EC2 instance via SSM Run Command
-        # Corrected --parameters format for StringList
+        # Build a JSON array string for the commands
+        JSON_PARAMS_PAYLOAD='{"commands":['
+        FIRST=1
+        while IFS= read -r cmd; do
+          # Skip empty lines
+          [ -z "$cmd" ] && continue
+          # Escape backslashes and double quotes
+          ESCAPED_CMD=$(echo "$cmd" | sed 's/\\/\\\\/g' | sed 's/\"/\\\"/g')
+          if [ $FIRST -eq 1 ]; then
+            JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD\"$ESCAPED_CMD\""
+            FIRST=0
+          else
+            JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD,\"$ESCAPED_CMD\""
+          fi
+        done <<< "$COMMANDS_HEREDOC"
+        JSON_PARAMS_PAYLOAD="$JSON_PARAMS_PAYLOAD] }"
+
+        echo "Final JSON for SSM: $JSON_PARAMS_PAYLOAD"
+
         aws ssm send-command \
           --instance-ids ${{ secrets.EC2_INSTANCE_ID }} \
           --document-name "AWS-RunShellScript" \
-          --parameters "commands=${COMMANDS//$'\\n'/','}" \
+          --parameters "$JSON_PARAMS_PAYLOAD" \
           --comment "Deploying new version of Financial App" \
           --output text
 
