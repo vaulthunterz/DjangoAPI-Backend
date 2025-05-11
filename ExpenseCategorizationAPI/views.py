@@ -1,5 +1,12 @@
 from django.http import JsonResponse
 from django.utils import timezone # For timestamp
+from django.shortcuts import render
+
+def home_view(request):
+    """
+    Home page view for the web interface
+    """
+    return render(request, 'home.html')
 
 def api_root_status(request):
     """
@@ -15,4 +22,4 @@ def api_root_status(request):
         }
     }
     return JsonResponse(status_data)
-    
+

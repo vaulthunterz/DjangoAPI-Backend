@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}FintechApp - Home{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="jumbotron">
+        <h1 class="display-4">Welcome to FintechApp</h1>
+        <p class="lead">Your personal finance management solution</p>
+        <hr class="my-4">
+        <p>Explore our features to manage your expenses, investments, and more.</p>
+        <a class="btn btn-primary btn-lg" href="/expenses/model-metrics/" role="button">View Model Metrics</a>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Expense Tracking</h5>
+                    <p class="card-text">Track and categorize your expenses with AI-powered categorization.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Investment Management</h5>
+                    <p class="card-text">Manage your investments and get personalized recommendations.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">AI-Powered Insights</h5>
+                    <p class="card-text">Get intelligent insights and recommendations for your finances.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
