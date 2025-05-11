@@ -7,6 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -51,7 +52,7 @@ jobs:
           echo "S3 destination: s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/${S3_DESTINATION_PREFIX}/"
           aws s3 sync "${LOCAL_STATIC_ROOT}/" "s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/${S3_DESTINATION_PREFIX}/" --delete
 
-      # Skip local database verification since PostgreSQL isn't running in GitHub Actions
+      # Skip database operations in GitHub Actions - they will be performed on the AWS server
 
       - name: Deploy to EC2
         run: |
@@ -78,11 +79,20 @@ jobs:
           python3 manage.py shell -c "from expenses.models import Category; print(f'Categories count: {Category.objects.count()}')"
 
           # Check if categories already exist
-          EXISTING_CATEGORIES=$(python3 manage.py shell -c "from expenses.models import Category; print(Category.objects.count())" | tail -n 1)
+          echo "Checking if categories exist in the database..."
+          EXISTING_CATEGORIES=$(python3 manage.py shell -c "from expenses.models import Category; print(Category.objects.count())" | tail -n 1 || echo "0")
 
-          if [ "$EXISTING_CATEGORIES" -eq "0" ]; then
+          if [ "$EXISTING_CATEGORIES" = "0" ]; then
               echo "No categories found. Populating initial categories and subcategories..."
               python3 manage.py populate_categories -v 3
+
+              # Verify categories were created
+              CATEGORIES_COUNT=$(python3 manage.py shell -c "from expenses.models import Category; print(Category.objects.count())" | tail -n 1 || echo "0")
+              if [ "$CATEGORIES_COUNT" = "0" ]; then
+                  echo "WARNING: Failed to populate categories. Please check database connection and logs."
+              else
+                  echo "SUCCESS: Populated $CATEGORIES_COUNT categories in the database."
+              fi
           else
               echo "Categories already exist ($EXISTING_CATEGORIES found). Skipping population to preserve existing data."
               echo "To force repopulation, run 'python3 manage.py populate_categories --force' manually."
@@ -92,7 +102,7 @@ jobs:
           echo "Verifying categories were created:"
           python3 manage.py shell -c "from expenses.models import Category, SubCategory; print(f'Categories count: {Category.objects.count()}'); print(f'Subcategories count: {SubCategory.objects.count()}')"
 
-       
+
 
           echo "==================== FINAL VERIFICATION ===================="
           echo "Final verification of categories:"
