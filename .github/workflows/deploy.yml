@@ -51,6 +51,20 @@ jobs:
           echo "S3 destination: s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/${S3_DESTINATION_PREFIX}/"
           aws s3 sync "${LOCAL_STATIC_ROOT}/" "s3://${{ secrets.AWS_STORAGE_BUCKET_NAME }}/${S3_DESTINATION_PREFIX}/" --delete
 
+      - name: Verify Database Population Locally
+        run: |
+          echo "Running local verification of populate_categories command..."
+          python manage.py populate_categories --force --yes -v 3
+
+          # Check if categories were created
+          CATEGORIES_COUNT=$(python manage.py shell -c "from expenses.models import Category; print(Category.objects.count())" | tail -n 1)
+          if [ "$CATEGORIES_COUNT" -eq "0" ]; then
+            echo "::error::Failed to populate categories locally. Deployment will likely fail."
+            exit 1
+          else
+            echo "::notice::Successfully populated $CATEGORIES_COUNT categories locally. Deployment should succeed."
+          fi
+
       - name: Deploy to EC2
         run: |
           COMMANDS_HEREDOC=$(cat <<EOF
@@ -77,9 +91,15 @@ jobs:
 
           python3 manage.py populate_categories --force --yes -v 3
 
+          echo "==================== CATEGORY VERIFICATION ===================="
           echo "Verifying categories were created:"
           python3 manage.py shell -c "from expenses.models import Category, SubCategory; print(f'Categories count: {Category.objects.count()}'); print(f'Subcategories count: {SubCategory.objects.count()}')"
 
+          # List all categories to verify specific ones were created
+          echo "Listing all categories for verification:"
+          python3 manage.py shell -c "from expenses.models import Category; print('CATEGORIES CREATED:'); [print(f'- {c.name} (ID: {c.id})') for c in Category.objects.all().order_by('name')]"
+
+          echo "==================== FINAL VERIFICATION ===================="
           echo "Final verification of categories:"
           python3 manage.py shell -c "from expenses.models import Category, SubCategory; print(f'Final categories count: {Category.objects.count()}'); print(f'Final subcategories count: {SubCategory.objects.count()}')"
           echo "Restarting Gunicorn service..."
