@@ -54,7 +54,8 @@ jobs:
       - name: Verify Database Population Locally
         run: |
           echo "Running local verification of populate_categories command..."
-          python manage.py populate_categories --force --yes -v 3
+          # Try with --force and --yes first
+          python manage.py populate_categories --force --yes -v 3 || python manage.py populate_categories --force -v 3
 
           # Check if categories were created
           CATEGORIES_COUNT=$(python manage.py shell -c "from expenses.models import Category; print(Category.objects.count())" | tail -n 1)
@@ -89,7 +90,8 @@ jobs:
           echo "Checking if categories exist before population:"
           python3 manage.py shell -c "from expenses.models import Category; print(f'Categories count: {Category.objects.count()}')"
 
-          python3 manage.py populate_categories --force --yes -v 3
+          echo "Attempting to populate categories..."
+          python3 manage.py populate_categories --force --yes -v 3 || python3 manage.py populate_categories --force -v 3
 
           echo "==================== CATEGORY VERIFICATION ===================="
           echo "Verifying categories were created:"
