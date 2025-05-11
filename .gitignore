@@ -25,3 +25,8 @@ serviceAccountKey.json
 .idea/
 
 deploy-to-cloud-run.sh
+ExpenseCategorizationAPI/settings.py
+ExpenseCategorizationAPI/__pycache__/settings.cpython-312.pyc
+
+Synthetic data/
+expenses/ml/cleanup.py
