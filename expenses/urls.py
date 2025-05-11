@@ -13,7 +13,9 @@ from expenses.views import (
     SubCategoryViewSet,
     CategoryLookupView,
     SubCategoryLookupView,
-    ChangePasswordView
+    ChangePasswordView,
+    model_analysis_view,
+    model_config_view
 )
 
 # Import model metrics views from the model_metrics_views.py file
@@ -46,6 +48,14 @@ urlpatterns = [
     path('model-train/', train_model_view, name='model-train'),
     path('model_train/', train_model_view, name='model_train'),  # Alternative URL with underscore
     path('api/training-status/', training_status_api, name='training-status-api'),
+
+    # Model analysis endpoint
+    path('model-analysis/', model_analysis_view, name='model-analysis'),
+    path('model_analysis/', model_analysis_view, name='model_analysis'),  # Alternative URL with underscore
+
+    # Model configuration endpoint
+    path('model-config/', model_config_view, name='model-config'),
+    path('model_config/', model_config_view, name='model_config'),  # Alternative URL with underscore
 
     # The following endpoints have been moved to the AI service:
     # - predict/gemini/

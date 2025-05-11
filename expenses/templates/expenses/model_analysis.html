@@ -1,0 +1,344 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Expense Model Analysis{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Expense Model Analysis</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Analyze Model Performance</h5>
+        </div>
+        <div class="card-body">
+            <form id="analysisForm">
+                <div class="form-group mb-3">
+                    <label for="modelType">Model Type:</label>
+                    <select class="form-control" id="modelType" name="modelType">
+                        <option value="custom">Custom Model</option>
+                        <option value="default">Default Model</option>
+                    </select>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="testData">Test Data (CSV or JSON):</label>
+                    <input type="file" class="form-control" id="testData" name="testData" accept=".csv,.json">
+                    <small class="form-text text-muted">
+                        Upload a CSV or JSON file with transactions to analyze. 
+                        The file should include 'description', 'merchant', and 'category' columns.
+                    </small>
+                </div>
+                
+                <button type="button" id="analyzeBtn" class="btn btn-primary">Analyze Model</button>
+            </form>
+        </div>
+    </div>
+    
+    <div id="loadingIndicator" class="text-center d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Analyzing model performance. This may take a moment...</p>
+    </div>
+    
+    <div id="resultsContainer" class="d-none">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Overall Performance</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Accuracy</h5>
+                                <h2 id="accuracyValue" class="display-4">-</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Transactions</h5>
+                                <h2 id="totalTransactions" class="display-4">-</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h5 class="card-title">Correct Predictions</h5>
+                                <h2 id="correctPredictions" class="display-4">-</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Categories with Highest Error Rates</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Error Rate</th>
+                                <th>Total Samples</th>
+                                <th>Correct Predictions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categoryErrorsTable">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">Common Misclassification Patterns</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Actual Category</th>
+                                <th>Predicted As</th>
+                                <th>Count</th>
+                                <th>Example Descriptions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="misclassificationPatternsTable">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Sample Misclassifications</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Merchant</th>
+                                <th>Actual Category</th>
+                                <th>Predicted Category</th>
+                                <th>Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sampleMisclassificationsTable">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultsContainer = document.getElementById('resultsContainer');
+        
+        analyzeBtn.addEventListener('click', function() {
+            // Get form data
+            const modelType = document.getElementById('modelType').value;
+            const fileInput = document.getElementById('testData');
+            
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Please select a file to analyze');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            // Show loading indicator
+            loadingIndicator.classList.remove('d-none');
+            resultsContainer.classList.add('d-none');
+            
+            // Read and process the file
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                let transactions = [];
+                
+                // Process based on file type
+                if (file.name.endsWith('.csv')) {
+                    transactions = processCSV(e.target.result);
+                } else if (file.name.endsWith('.json')) {
+                    transactions = JSON.parse(e.target.result);
+                }
+                
+                // Send to API for analysis
+                analyzeModelPerformance(transactions, modelType);
+            };
+            
+            if (file.name.endsWith('.csv') || file.name.endsWith('.json')) {
+                reader.readAsText(file);
+            } else {
+                alert('Please upload a CSV or JSON file');
+                loadingIndicator.classList.add('d-none');
+            }
+        });
+        
+        function processCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            
+            const transactions = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                
+                // Handle CSV with quoted fields containing commas
+                const row = parseCSVLine(lines[i]);
+                
+                const transaction = {};
+                headers.forEach((header, index) => {
+                    if (index < row.length) {
+                        transaction[header] = row[index];
+                    }
+                });
+                
+                if (transaction.description && transaction.category) {
+                    transactions.push(transaction);
+                }
+            }
+            
+            return transactions;
+        }
+        
+        function parseCSVLine(line) {
+            const result = [];
+            let inQuotes = false;
+            let currentValue = '';
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(currentValue.trim().replace(/"/g, ''));
+                    currentValue = '';
+                } else {
+                    currentValue += char;
+                }
+            }
+            
+            result.push(currentValue.trim().replace(/"/g, ''));
+            return result;
+        }
+        
+        function analyzeModelPerformance(transactions, modelType) {
+            fetch('/api/ai/expense/analyze/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify({
+                    transactions: transactions,
+                    model_type: modelType
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayResults(data);
+                loadingIndicator.classList.add('d-none');
+                resultsContainer.classList.remove('d-none');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error analyzing model performance: ' + error.message);
+                loadingIndicator.classList.add('d-none');
+            });
+        }
+        
+        function displayResults(data) {
+            // Display overall metrics
+            document.getElementById('accuracyValue').textContent = (data.accuracy * 100).toFixed(2) + '%';
+            document.getElementById('totalTransactions').textContent = data.total_transactions;
+            document.getElementById('correctPredictions').textContent = data.correct_predictions;
+            
+            // Display category error rates
+            const categoryErrorsTable = document.getElementById('categoryErrorsTable');
+            categoryErrorsTable.innerHTML = '';
+            
+            data.category_stats.forEach(stat => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${stat.category}</td>
+                    <td>${(stat.error_rate * 100).toFixed(2)}%</td>
+                    <td>${stat.total_samples}</td>
+                    <td>${stat.correct_predictions}</td>
+                `;
+                categoryErrorsTable.appendChild(row);
+            });
+            
+            // Display misclassification patterns
+            const misclassificationPatternsTable = document.getElementById('misclassificationPatternsTable');
+            misclassificationPatternsTable.innerHTML = '';
+            
+            data.misclassification_patterns.forEach(pattern => {
+                const row = document.createElement('tr');
+                
+                // Create example descriptions
+                let exampleText = '';
+                if (pattern.examples && pattern.examples.length > 0) {
+                    exampleText = pattern.examples.map(ex => 
+                        `${ex.description} ${ex.merchant ? `(${ex.merchant})` : ''}`
+                    ).join('<br>');
+                }
+                
+                row.innerHTML = `
+                    <td>${pattern.actual}</td>
+                    <td>${pattern.predicted}</td>
+                    <td>${pattern.count}</td>
+                    <td>${exampleText}</td>
+                `;
+                misclassificationPatternsTable.appendChild(row);
+            });
+            
+            // Display sample misclassifications
+            const sampleMisclassificationsTable = document.getElementById('sampleMisclassificationsTable');
+            sampleMisclassificationsTable.innerHTML = '';
+            
+            data.sample_misclassifications.forEach(sample => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${sample.description}</td>
+                    <td>${sample.merchant || '-'}</td>
+                    <td>${sample.actual_category}</td>
+                    <td>${sample.predicted_category}</td>
+                    <td>${(sample.confidence * 100).toFixed(2)}%</td>
+                `;
+                sampleMisclassificationsTable.appendChild(row);
+            });
+        }
+    });
+</script>
+{% endblock %}

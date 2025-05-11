@@ -5,6 +5,8 @@ from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 
 # Import Firebase auth for password changes
 from firebase_admin import auth
@@ -226,3 +228,26 @@ class ChangePasswordView(APIView):
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@login_required
+def model_analysis_view(request):
+    """
+    View for analyzing the expense categorization model performance.
+
+    This view renders a page that allows users to upload test data and
+    analyze how well the model performs on it, with detailed information
+    about which categories are most frequently misclassified.
+    """
+    return render(request, 'expenses/model_analysis.html')
+
+
+@login_required
+def model_config_view(request):
+    """
+    View for configuring the expense categorization model.
+
+    This view renders a page that allows users to configure the model settings,
+    such as feature weights, and retrain the model with the new settings.
+    """
+    return render(request, 'expenses/model_config.html')

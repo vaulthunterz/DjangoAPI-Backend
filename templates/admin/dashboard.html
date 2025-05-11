@@ -1,0 +1,369 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
+  <style>
+    .dashboard-container {
+      padding: 20px;
+    }
+    .stats-card {
+      background-color: #fff;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      padding: 15px;
+    }
+    .stats-card h3 {
+      border-bottom: 1px solid #eee;
+      margin-top: 0;
+      padding-bottom: 10px;
+    }
+    .stats-value {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .stats-label {
+      color: #666;
+      font-size: 14px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .stats-item {
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      padding: 15px;
+      text-align: center;
+    }
+    .chart-container {
+      height: 300px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .positive {
+      color: #28a745;
+    }
+    .negative {
+      color: #dc3545;
+    }
+    .recent-activity {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .activity-item {
+      border-bottom: 1px solid #eee;
+      padding: 10px 0;
+    }
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+    .dashboard-row {
+      display: flex;
+      flex-wrap: wrap;
+      margin: 0 -10px;
+    }
+    .dashboard-col {
+      flex: 1;
+      min-width: 300px;
+      padding: 0 10px;
+    }
+    @media (max-width: 768px) {
+      .dashboard-col {
+        flex: 100%;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  <h1>FinTrack Dashboard</h1>
+  
+  <!-- Summary Stats -->
+  <div class="stats-card">
+    <h3>Summary</h3>
+    <div class="stats-grid">
+      <div class="stats-item">
+        <div class="stats-value">{{ stats.users.total }}</div>
+        <div class="stats-label">Total Users</div>
+      </div>
+      <div class="stats-item">
+        <div class="stats-value">{{ stats.transactions.total }}</div>
+        <div class="stats-label">Transactions</div>
+      </div>
+      <div class="stats-item">
+        <div class="stats-value">${{ stats.transactions.expense|floatformat:2 }}</div>
+        <div class="stats-label">Total Expenses</div>
+      </div>
+      <div class="stats-item">
+        <div class="stats-value">${{ stats.transactions.income|floatformat:2 }}</div>
+        <div class="stats-label">Total Income</div>
+      </div>
+      <div class="stats-item">
+        <div class="stats-value {% if stats.transactions.balance >= 0 %}positive{% else %}negative{% endif %}">
+          ${{ stats.transactions.balance|floatformat:2 }}
+        </div>
+        <div class="stats-label">Balance</div>
+      </div>
+      <div class="stats-item">
+        <div class="stats-value">{{ stats.investments.portfolios }}</div>
+        <div class="stats-label">Portfolios</div>
+      </div>
+      <div class="stats-item">
+        <div class="stats-value">${{ stats.investments.total_invested|floatformat:2 }}</div>
+        <div class="stats-label">Total Invested</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Expense Analysis -->
+  <div class="dashboard-row">
+    <div class="dashboard-col">
+      <div class="stats-card">
+        <h3>Expense by Category</h3>
+        <div class="chart-container">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="dashboard-col">
+      <div class="stats-card">
+        <h3>Daily Expenses (Last 30 Days)</h3>
+        <div class="chart-container">
+          <canvas id="expenseTimeChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Investment Analysis -->
+  <div class="dashboard-row">
+    <div class="dashboard-col">
+      <div class="stats-card">
+        <h3>Risk Tolerance Distribution</h3>
+        <div class="chart-container">
+          <canvas id="riskChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="dashboard-col">
+      <div class="stats-card">
+        <h3>Portfolio Distribution</h3>
+        <div class="chart-container">
+          <canvas id="portfolioChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- User Activity -->
+  <div class="dashboard-row">
+    <div class="dashboard-col">
+      <div class="stats-card">
+        <h3>Top Users by Transactions</h3>
+        <div class="chart-container">
+          <canvas id="userTransactionChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="dashboard-col">
+      <div class="stats-card">
+        <h3>Top Users by Portfolios</h3>
+        <div class="chart-container">
+          <canvas id="userPortfolioChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Recent Activity -->
+  <div class="dashboard-row">
+    <div class="dashboard-col">
+      <div class="stats-card">
+        <h3>Recent Transactions</h3>
+        <div class="recent-activity">
+          {% for transaction in stats.transactions.recent %}
+            <div class="activity-item">
+              <strong>{{ transaction.user.username }}</strong>:
+              <span class="{% if transaction.is_expense %}negative{% else %}positive{% endif %}">
+                {% if transaction.is_expense %}-{% else %}+{% endif %}${{ transaction.amount|floatformat:2 }}
+              </span>
+              {% if transaction.merchant_name %} at {{ transaction.merchant_name }}{% endif %}
+              <small class="text-muted">{{ transaction.time_of_transaction|date:"M d, Y H:i" }}</small>
+            </div>
+          {% empty %}
+            <p>No recent transactions</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="dashboard-col">
+      <div class="stats-card">
+        <h3>Recent Recommendations</h3>
+        <div class="recent-activity">
+          {% for recommendation in stats.investments.recent_recommendations %}
+            <div class="activity-item">
+              <strong>{{ recommendation.user.user.username }}</strong>: {{ recommendation.message }}
+              <small class="text-muted">{{ recommendation.timestamp|date:"M d, Y H:i" }}</small>
+            </div>
+          {% empty %}
+            <p>No recent recommendations</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extrajs %}
+  {{ block.super }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Expense by Category Chart
+      const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+      const categoryChart = new Chart(categoryCtx, {
+        type: 'pie',
+        data: {
+          labels: {{ expense_data.categories.labels|safe }},
+          datasets: [{
+            data: {{ expense_data.categories.amounts|safe }},
+            backgroundColor: [
+              '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+              '#5a5c69', '#858796', '#6f42c1', '#20c9a6', '#fd7e14'
+            ],
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+            }
+          }
+        }
+      });
+      
+      // Daily Expenses Chart
+      const expenseTimeCtx = document.getElementById('expenseTimeChart').getContext('2d');
+      const expenseTimeChart = new Chart(expenseTimeCtx, {
+        type: 'line',
+        data: {
+          labels: {{ expense_data.time_series.labels|safe }},
+          datasets: [{
+            label: 'Daily Expenses',
+            data: {{ expense_data.time_series.amounts|safe }},
+            borderColor: '#4e73df',
+            backgroundColor: 'rgba(78, 115, 223, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '$' + value;
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      // Risk Distribution Chart
+      const riskCtx = document.getElementById('riskChart').getContext('2d');
+      const riskChart = new Chart(riskCtx, {
+        type: 'doughnut',
+        data: {
+          labels: {{ investment_data.risk_distribution.labels|safe }},
+          datasets: [{
+            data: {{ investment_data.risk_distribution.counts|safe }},
+            backgroundColor: ['#1cc88a', '#f6c23e', '#e74a3b'],
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+        }
+      });
+      
+      // Portfolio Chart
+      const portfolioCtx = document.getElementById('portfolioChart').getContext('2d');
+      const portfolioChart = new Chart(portfolioCtx, {
+        type: 'bar',
+        data: {
+          labels: {{ investment_data.portfolios.labels|safe }},
+          datasets: [{
+            label: 'Portfolio Amount',
+            data: {{ investment_data.portfolios.amounts|safe }},
+            backgroundColor: '#4e73df',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return '$' + value;
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      // User Transaction Chart
+      const userTransactionCtx = document.getElementById('userTransactionChart').getContext('2d');
+      const userTransactionChart = new Chart(userTransactionCtx, {
+        type: 'bar',
+        data: {
+          labels: {{ user_activity.top_transaction_users.labels|safe }},
+          datasets: [{
+            label: 'Transaction Count',
+            data: {{ user_activity.top_transaction_users.counts|safe }},
+            backgroundColor: '#1cc88a',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+        }
+      });
+      
+      // User Portfolio Chart
+      const userPortfolioCtx = document.getElementById('userPortfolioChart').getContext('2d');
+      const userPortfolioChart = new Chart(userPortfolioCtx, {
+        type: 'bar',
+        data: {
+          labels: {{ user_activity.top_portfolio_users.labels|safe }},
+          datasets: [{
+            label: 'Portfolio Count',
+            data: {{ user_activity.top_portfolio_users.counts|safe }},
+            backgroundColor: '#36b9cc',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+        }
+      });
+    });
+  </script>
+{% endblock %}

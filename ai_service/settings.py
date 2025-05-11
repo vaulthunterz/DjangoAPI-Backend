@@ -13,9 +13,10 @@ GEMINI_MODEL_NAME = getattr(settings, 'GEMINI_MODEL_NAME', os.getenv('GEMINI_MOD
 
 # Expense AI settings
 EXPENSE_MODEL_PATH = os.path.join('expenses', 'ml')
-EXPENSE_CUSTOM_MODEL_PATH = os.path.join(EXPENSE_MODEL_PATH, 'custom_model.joblib')
-EXPENSE_VECTORIZER_PATH = os.path.join(EXPENSE_MODEL_PATH, 'vectorizer.joblib')
-EXPENSE_LABEL_ENCODER_PATH = os.path.join(EXPENSE_MODEL_PATH, 'label_encoder.joblib')
+EXPENSE_MODELS_DIR = os.path.join(EXPENSE_MODEL_PATH, 'models')
+EXPENSE_CUSTOM_MODEL_PATH = os.path.join(EXPENSE_MODELS_DIR, 'category_model.joblib')
+EXPENSE_VECTORIZER_PATH = os.path.join(EXPENSE_MODELS_DIR, 'feature_extractor.joblib')
+EXPENSE_LABEL_ENCODER_PATH = os.path.join(EXPENSE_MODELS_DIR, 'metadata.joblib')
 
 # Investment AI settings
 INVESTMENT_MODEL_PATH = os.path.join('investment', 'ml')

@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Expense Model Configuration{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Expense Model Configuration</h1>
+
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Feature Weights</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">
+                Configure the weights used for different features in the expense categorization model.
+                Higher weights give more importance to that feature during categorization.
+                Set a weight to 0 to completely ignore that feature.
+            </p>
+
+            <form id="featureWeightsForm">
+                <h5 class="mb-3">Feature Weights</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="descriptionWeight">Description Weight:</label>
+                            <input type="number" class="form-control" id="descriptionWeight" name="descriptionWeight"
+                                   min="0" max="100" step="0.1" value="10.0">
+                            <small class="form-text text-muted">
+                                Weight for the transaction description (default: 10.0)
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="merchantWeight">Merchant Weight:</label>
+                            <input type="number" class="form-control" id="merchantWeight" name="merchantWeight"
+                                   min="0" max="100" step="0.1" value="0.0">
+                            <small class="form-text text-muted">
+                                Weight for the merchant field (default: 0.0, set to 0 to ignore)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="mb-3">Model Settings</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="useEnsemble" name="useEnsemble" checked>
+                                <label class="form-check-label" for="useEnsemble">
+                                    Use Ensemble Model
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                If checked, uses an ensemble of multiple models. Otherwise, uses only RandomForest.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="maxFeatures">Max Features:</label>
+                            <input type="number" class="form-control" id="maxFeatures" name="maxFeatures"
+                                   min="100" max="2000" step="100" value="500">
+                            <small class="form-text text-muted">
+                                Maximum number of features to extract per column
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion mb-3" id="advancedSettingsAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingAdvanced">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#collapseAdvanced" aria-expanded="false" aria-controls="collapseAdvanced">
+                                Advanced Settings
+                            </button>
+                        </h2>
+                        <div id="collapseAdvanced" class="accordion-collapse collapse" aria-labelledby="headingAdvanced"
+                             data-bs-parent="#advancedSettingsAccordion">
+                            <div class="accordion-body">
+                                <h6 class="mb-3">Ensemble Weights</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label for="rfWeight">RandomForest Weight:</label>
+                                            <input type="number" class="form-control" id="rfWeight" name="rfWeight"
+                                                   min="0" max="1" step="0.1" value="0.5">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label for="gbWeight">GradientBoosting Weight:</label>
+                                            <input type="number" class="form-control" id="gbWeight" name="gbWeight"
+                                                   min="0" max="1" step="0.1" value="0.3">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-3">
+                                            <label for="lrWeight">LogisticRegression Weight:</label>
+                                            <input type="number" class="form-control" id="lrWeight" name="lrWeight"
+                                                   min="0" max="1" step="0.1" value="0.2">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h6 class="mb-3">RandomForest Settings</h6>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label for="rfEstimators">n_estimators:</label>
+                                            <input type="number" class="form-control" id="rfEstimators" name="rfEstimators"
+                                                   min="10" max="500" step="10" value="100">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label for="rfMaxDepth">max_depth:</label>
+                                            <input type="number" class="form-control" id="rfMaxDepth" name="rfMaxDepth"
+                                                   min="5" max="50" step="1" value="20">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label for="rfMinSamplesSplit">min_samples_split:</label>
+                                            <input type="number" class="form-control" id="rfMinSamplesSplit" name="rfMinSamplesSplit"
+                                                   min="2" max="20" step="1" value="5">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label for="rfMinSamplesLeaf">min_samples_leaf:</label>
+                                            <input type="number" class="form-control" id="rfMinSamplesLeaf" name="rfMinSamplesLeaf"
+                                                   min="1" max="20" step="1" value="2">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h6 class="mb-3">GradientBoosting Settings</h6>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label for="gbEstimators">n_estimators:</label>
+                                            <input type="number" class="form-control" id="gbEstimators" name="gbEstimators"
+                                                   min="10" max="500" step="10" value="100">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label for="gbLearningRate">learning_rate:</label>
+                                            <input type="number" class="form-control" id="gbLearningRate" name="gbLearningRate"
+                                                   min="0.01" max="1" step="0.01" value="0.1">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label for="gbMaxDepth">max_depth:</label>
+                                            <input type="number" class="form-control" id="gbMaxDepth" name="gbMaxDepth"
+                                                   min="1" max="20" step="1" value="5">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label for="gbSubsample">subsample:</label>
+                                            <input type="number" class="form-control" id="gbSubsample" name="gbSubsample"
+                                                   min="0.1" max="1" step="0.1" value="1.0">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="retrainModel" name="retrainModel">
+                        <label class="form-check-label" for="retrainModel">
+                            Retrain model after updating weights
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">
+                        If checked, the model will be retrained with the new weights after saving.
+                        This may take a few minutes.
+                    </small>
+                </div>
+
+                <button type="button" id="saveWeightsBtn" class="btn btn-primary">Save Weights</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Current Configuration</h5>
+        </div>
+        <div class="card-body">
+            <div id="loadingConfig" class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading current configuration...</p>
+            </div>
+
+            <div id="configInfo" class="d-none">
+                <h6>Feature Weights:</h6>
+                <ul id="featureWeightsList" class="list-group mb-3">
+                    <!-- Will be populated by JavaScript -->
+                </ul>
+
+                <h6>Model Settings:</h6>
+                <ul id="modelSettingsList" class="list-group mb-3">
+                    <!-- Will be populated by JavaScript -->
+                </ul>
+
+                <h6>Model Version:</h6>
+                <p id="modelVersion" class="mb-3">-</p>
+
+                <button type="button" id="refreshConfigBtn" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="statusAlert" class="alert d-none" role="alert">
+        <!-- Will be populated by JavaScript -->
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const saveWeightsBtn = document.getElementById('saveWeightsBtn');
+        const refreshConfigBtn = document.getElementById('refreshConfigBtn');
+        const statusAlert = document.getElementById('statusAlert');
+        const loadingConfig = document.getElementById('loadingConfig');
+        const configInfo = document.getElementById('configInfo');
+
+        // Load current configuration on page load
+        loadCurrentConfig();
+
+        // Save weights button click handler
+        saveWeightsBtn.addEventListener('click', function() {
+            const descriptionWeight = parseFloat(document.getElementById('descriptionWeight').value);
+            const merchantWeight = parseFloat(document.getElementById('merchantWeight').value);
+            const retrainModel = document.getElementById('retrainModel').checked;
+
+            // Validate inputs
+            if (isNaN(descriptionWeight) || isNaN(merchantWeight)) {
+                showAlert('Please enter valid numbers for weights.', 'danger');
+                return;
+            }
+
+            // Disable button and show loading state
+            saveWeightsBtn.disabled = true;
+            saveWeightsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+
+            // Send request to update weights
+            fetch('/api/ai/expense/config/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify({
+                    feature_weights: {
+                        description: descriptionWeight,
+                        merchant: merchantWeight
+                    },
+                    retrain_model: retrainModel
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                showAlert('Configuration saved successfully!', 'success');
+
+                // If retraining, show a message
+                if (retrainModel) {
+                    showAlert('Model retraining started. This may take a few minutes.', 'info');
+                }
+
+                // Reload configuration
+                loadCurrentConfig();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error saving configuration: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                // Re-enable button
+                saveWeightsBtn.disabled = false;
+                saveWeightsBtn.innerHTML = 'Save Weights';
+            });
+        });
+
+        // Refresh config button click handler
+        refreshConfigBtn.addEventListener('click', function() {
+            loadCurrentConfig();
+        });
+
+        // Function to load current configuration
+        function loadCurrentConfig() {
+            // Show loading state
+            loadingConfig.classList.remove('d-none');
+            configInfo.classList.add('d-none');
+
+            fetch('/api/ai/expense/config/', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update form values
+                if (data.feature_weights) {
+                    document.getElementById('descriptionWeight').value =
+                        data.feature_weights.description !== undefined ? data.feature_weights.description : 10.0;
+                    document.getElementById('merchantWeight').value =
+                        data.feature_weights.merchant !== undefined ? data.feature_weights.merchant : 0.0;
+                }
+
+                // Update feature weights list
+                const featureWeightsList = document.getElementById('featureWeightsList');
+                featureWeightsList.innerHTML = '';
+
+                if (data.feature_weights) {
+                    for (const [feature, weight] of Object.entries(data.feature_weights)) {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        li.innerHTML = `
+                            ${feature}
+                            <span class="badge bg-primary rounded-pill">${weight}</span>
+                        `;
+                        featureWeightsList.appendChild(li);
+                    }
+                }
+
+                // Update model settings list
+                const modelSettingsList = document.getElementById('modelSettingsList');
+                modelSettingsList.innerHTML = '';
+
+                const settings = [
+                    { name: 'Use Ensemble', value: data.use_ensemble },
+                    { name: 'Max Features', value: data.max_features },
+                    { name: 'N-gram Range', value: data.ngram_range ? data.ngram_range.join(', ') : '-' },
+                    { name: 'Test Size', value: data.test_size }
+                ];
+
+                settings.forEach(setting => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    li.innerHTML = `
+                        ${setting.name}
+                        <span class="badge bg-secondary rounded-pill">${setting.value}</span>
+                    `;
+                    modelSettingsList.appendChild(li);
+                });
+
+                // Update model version
+                document.getElementById('modelVersion').textContent = data.model_version || 'Unknown';
+
+                // Show config info
+                loadingConfig.classList.add('d-none');
+                configInfo.classList.remove('d-none');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error loading configuration: ' + error.message, 'danger');
+                loadingConfig.classList.add('d-none');
+            });
+        }
+
+        // Function to show alert
+        function showAlert(message, type) {
+            statusAlert.textContent = message;
+            statusAlert.className = `alert alert-${type}`;
+            statusAlert.classList.remove('d-none');
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                statusAlert.classList.add('d-none');
+            }, 5000);
+        }
+    });
+</script>
+{% endblock %}

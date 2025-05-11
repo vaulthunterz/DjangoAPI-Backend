@@ -9,15 +9,17 @@ class Category(models.Model):
 
     class Meta:
         verbose_name_plural = "Categories"
+        ordering = ['name']  # Add default ordering by name
 
 class SubCategory(models.Model):
     name = models.CharField(max_length=200)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE,related_name='subcategories')
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='subcategories')
 
     class Meta:
         unique_together = (
         'name', 'category')  # enforce uniqueness of subcategories in the context of the parent category
         verbose_name_plural = "Subcategories"
+        ordering = ['category__name', 'name']  # Order by category name, then subcategory name
 
     def __str__(self):
         return f"{self.category.name} - {self.name}"

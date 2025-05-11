@@ -1,0 +1,214 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static "admin/css/login.css" %}">
+  <style>
+    body.login {
+      background: #2c3e50;
+      background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+    }
+    .login #header {
+      background: transparent;
+      color: #fff;
+      padding: 15px 10px;
+      text-align: center;
+    }
+    .login #header h1 {
+      font-size: 24px;
+      margin: 0;
+      padding: 0;
+    }
+    .login #container {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      margin: 60px auto;
+      max-width: 400px;
+      padding: 26px;
+    }
+    .login .form-row {
+      padding: 8px 0;
+    }
+    .login .form-row label {
+      color: #333;
+      display: block;
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .login .form-row input {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 14px;
+      padding: 10px;
+      width: 100%;
+    }
+    .login .submit-row {
+      margin-top: 20px;
+      padding: 0;
+      text-align: center;
+    }
+    .login .submit-row input {
+      background: #3498db;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      padding: 10px 15px;
+      text-transform: uppercase;
+      transition: background 0.3s;
+      width: 100%;
+    }
+    .login .submit-row input:hover {
+      background: #2980b9;
+    }
+    .login .errornote {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      color: #721c24;
+      font-size: 14px;
+      margin-bottom: 20px;
+      padding: 10px;
+    }
+    .login .messagelist {
+      margin-bottom: 20px;
+      padding: 0;
+    }
+    .login .messagelist li {
+      border-radius: 4px;
+      font-size: 14px;
+      list-style: none;
+      margin-bottom: 5px;
+      padding: 10px;
+    }
+    .login .messagelist li.success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    .login .messagelist li.warning {
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      color: #856404;
+    }
+    .login .messagelist li.error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    .login .password-reset-link {
+      margin-top: 15px;
+      text-align: center;
+    }
+    .login .password-reset-link a {
+      color: #3498db;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .login .password-reset-link a:hover {
+      text-decoration: underline;
+    }
+    .login-brand {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .login-brand img {
+      max-width: 150px;
+      height: auto;
+    }
+    .login-footer {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      margin-top: 20px;
+      text-align: center;
+    }
+    .login-security-notice {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 12px;
+      margin: 20px auto 0;
+      max-width: 400px;
+      padding: 10px;
+      text-align: center;
+    }
+  </style>
+{% endblock %}
+
+{% block bodyclass %}login{% endblock %}
+
+{% block usertools %}{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block nav-sidebar %}{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div class="login-brand">
+    <h1>FinTrack Admin</h1>
+  </div>
+
+  {% if form.errors and not form.non_field_errors %}
+  <p class="errornote">
+    {% if form.errors.items|length == 1 %}{% translate "Please correct the error below." %}{% else %}{% translate "Please correct the errors below." %}{% endif %}
+  </p>
+  {% endif %}
+
+  {% if form.non_field_errors %}
+  {% for error in form.non_field_errors %}
+  <p class="errornote">
+    {{ error }}
+  </p>
+  {% endfor %}
+  {% endif %}
+
+  {% if user.is_authenticated %}
+  <p class="errornote">
+    {% blocktranslate trimmed %}
+    You are authenticated as {{ username }}, but are not authorized to
+    access this page. Would you like to login to a different account?
+    {% endblocktranslate %}
+  </p>
+  {% endif %}
+
+  <form action="{{ app_path }}" method="post" id="login-form">{% csrf_token %}
+    <div class="form-row">
+      {{ form.username.errors }}
+      {{ form.username.label_tag }} {{ form.username }}
+    </div>
+    <div class="form-row">
+      {{ form.password.errors }}
+      {{ form.password.label_tag }} {{ form.password }}
+      <input type="hidden" name="next" value="{{ next }}">
+    </div>
+    {% url 'admin_password_reset' as password_reset_url %}
+    {% if password_reset_url %}
+    <div class="password-reset-link">
+      <a href="{{ password_reset_url }}">{% translate 'Forgotten your password or username?' %}</a>
+    </div>
+    {% endif %}
+    <div class="submit-row">
+      <input type="submit" value="{% translate 'Log in' %}">
+    </div>
+  </form>
+</div>
+
+<div class="login-security-notice">
+  <p>This is a secure area. All login attempts are monitored and recorded.</p>
+</div>
+
+<div class="login-footer">
+  <p>&copy; {% now "Y" %} FinTrack. All rights reserved.</p>
+</div>
+{% endblock %}

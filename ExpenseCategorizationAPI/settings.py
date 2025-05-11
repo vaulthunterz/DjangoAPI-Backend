@@ -94,10 +94,11 @@ INSTALLED_APPS = [
     'storages',                 # For django-storages (S3)
     'rest_framework',
     'expenses.apps.ExpensesConfig',
-    'investment',
+    'investment.apps.InvestmentConfig',
     'corsheaders',
     'drf_yasg',
-    'ai_service',
+    'ai_service.apps.AIServiceConfig',
+    'core.apps.CoreConfig',      # Core app for shared functionality
 ]
 
 MIDDLEWARE = [

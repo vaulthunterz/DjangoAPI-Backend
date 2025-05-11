@@ -84,6 +84,28 @@
             {{ metrics.error }}
         </div>
     {% else %}
+        <!-- Model Type Banner -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="alert {% if metrics.is_ensemble %}alert-success{% else %}alert-info{% endif %}">
+                    <h4 class="alert-heading">
+                        {% if metrics.is_ensemble %}
+                            <i class="fas fa-layer-group"></i> Enhanced Model (Ensemble)
+                        {% else %}
+                            <i class="fas fa-tree"></i> Original Model (RandomForest)
+                        {% endif %}
+                    </h4>
+                    <p>
+                        {% if metrics.is_ensemble %}
+                            This model uses an ensemble of multiple algorithms for better accuracy but slower training.
+                        {% else %}
+                            This model uses RandomForest only for faster training with good accuracy.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- Summary Cards -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -228,6 +250,94 @@
                 </div>
             </div>
         </div>
+
+        <!-- Feature Importance -->
+        {% if metrics.feature_importance %}
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Top 20 Important Features</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <canvas id="featureImportanceChart"></canvas>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-striped table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Feature</th>
+                                            <th>Importance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for feature, importance in metrics.feature_importance.items %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td>{{ feature }}</td>
+                                            <td>{{ importance|floatformat:4 }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Historical Metrics -->
+        {% if metrics.historical_metrics %}
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Model Performance History</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <canvas id="historyChart"></canvas>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-striped table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Type</th>
+                                            <th>Accuracy</th>
+                                            <th>F1 Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="table-primary">
+                                            <td><strong>{{ metrics.current_date }}</strong> (Current)</td>
+                                            <td>{{ metrics.model_type }}</td>
+                                            <td>{{ metrics.category_accuracy|floatformat:2 }}%</td>
+                                            <td>{{ metrics.category_f1|floatformat:2 }}%</td>
+                                        </tr>
+                                        {% for hist in metrics.historical_metrics %}
+                                        <tr>
+                                            <td>{{ hist.date }}</td>
+                                            <td>{{ hist.model_type }}</td>
+                                            <td>{{ hist.category_accuracy|floatformat:2 }}%</td>
+                                            <td>{{ hist.category_f1|floatformat:2 }}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- More Charts Row -->
         <div class="row mb-4">
@@ -534,6 +644,99 @@
                     }
                 }
             });
+
+            // Feature Importance Chart
+            {% if metrics.feature_importance %}
+            const featureImportanceCtx = document.getElementById('featureImportanceChart').getContext('2d');
+            const featureImportanceData = {
+                labels: [
+                    {% for feature, importance in metrics.feature_importance.items %}
+                        '{{ feature }}',
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Feature Importance',
+                    data: [
+                        {% for feature, importance in metrics.feature_importance.items %}
+                            {{ importance|floatformat:4 }},
+                        {% endfor %}
+                    ],
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            };
+            const featureImportanceChart = new Chart(featureImportanceCtx, {
+                type: 'bar',
+                data: featureImportanceData,
+                options: {
+                    indexAxis: 'y',  // Horizontal bar chart
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            {% endif %}
+
+            // Historical Metrics Chart
+            {% if metrics.historical_metrics %}
+            const historyCtx = document.getElementById('historyChart').getContext('2d');
+            const historyData = {
+                labels: [
+                    '{{ metrics.current_date }}',
+                    {% for hist in metrics.historical_metrics %}
+                        '{{ hist.date }}',
+                    {% endfor %}
+                ],
+                datasets: [
+                    {
+                        label: 'Accuracy',
+                        data: [
+                            {{ metrics.category_accuracy|floatformat:2 }},
+                            {% for hist in metrics.historical_metrics %}
+                                {{ hist.category_accuracy|floatformat:2 }},
+                            {% endfor %}
+                        ],
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        fill: false
+                    },
+                    {
+                        label: 'F1 Score',
+                        data: [
+                            {{ metrics.category_f1|floatformat:2 }},
+                            {% for hist in metrics.historical_metrics %}
+                                {{ hist.category_f1|floatformat:2 }},
+                            {% endfor %}
+                        ],
+                        backgroundColor: 'rgba(153, 102, 255, 0.6)',
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 2,
+                        fill: false
+                    }
+                ]
+            };
+            const historyChart = new Chart(historyCtx, {
+                type: 'line',
+                data: historyData,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+            {% endif %}
 
             // Accuracy by Category Chart
             const accuracyByCategoryCtx = document.getElementById('accuracyByCategory').getContext('2d');

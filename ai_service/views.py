@@ -5,7 +5,14 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from .analysis import ModelAnalyzer
+from expenses.ml.config import FEATURE_WEIGHTS, MAX_FEATURES, NGRAM_RANGE, TEST_SIZE, USE_ENSEMBLE, update_feature_weights
 from django.shortcuts import get_object_or_404
+import logging
+import joblib
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 from .factory import (
     get_expense_ai_service,
@@ -377,6 +384,164 @@ class AIServiceInfoView(APIView):
             info = ai_service_factory.get_service_info()
 
             return Response(info)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ExpenseModelAnalysisView(APIView):
+    """
+    API endpoint for analyzing expense model performance and misclassifications.
+
+    This endpoint allows you to submit a batch of transactions with known categories
+    and analyze how well the model performs on them, with detailed information about
+    which categories are most frequently misclassified.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        # Get transactions from request
+        transactions = request.data.get('transactions', [])
+        model_type = request.data.get('model_type', 'custom')
+
+        # Validate input
+        if not transactions:
+            return Response(
+                {'error': 'No transactions provided for analysis'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Get the expense AI service
+            expense_service = get_expense_ai_service()
+
+            # Create analyzer
+            analyzer = ModelAnalyzer(expense_service)
+
+            # Analyze misclassifications
+            analysis_results = analyzer.analyze_misclassifications(
+                transactions=transactions,
+                model_type=model_type
+            )
+
+            return Response(analysis_results)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ExpenseModelConfigView(APIView):
+    """
+    API endpoint for getting and updating expense model configuration.
+
+    This endpoint allows you to view and modify the model configuration,
+    such as feature weights, and optionally retrain the model with the new settings.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        """Get the current model configuration"""
+        try:
+            # Get metadata from a trained model if available
+            expense_service = get_expense_ai_service()
+            model_version = "Unknown"
+
+            if expense_service and expense_service.classifier:
+                # Try to get feature weights from the classifier
+                feature_weights = getattr(expense_service.classifier, 'feature_weights', FEATURE_WEIGHTS)
+                use_ensemble = getattr(expense_service.classifier, 'use_ensemble', USE_ENSEMBLE)
+
+                # Try to get model version from metadata
+                if hasattr(expense_service.classifier, 'models_dir'):
+                    import os
+                    import joblib
+                    metadata_path = os.path.join(expense_service.classifier.models_dir, 'metadata.joblib')
+                    if os.path.exists(metadata_path):
+                        try:
+                            metadata = joblib.load(metadata_path)
+                            if 'model_version' in metadata:
+                                model_version = metadata['model_version']
+                        except Exception as e:
+                            logger.error(f"Error loading metadata: {str(e)}")
+            else:
+                # Use default values from config
+                feature_weights = FEATURE_WEIGHTS
+                use_ensemble = USE_ENSEMBLE
+
+            # Return the configuration
+            config = {
+                'feature_weights': feature_weights,
+                'max_features': MAX_FEATURES,
+                'ngram_range': NGRAM_RANGE,
+                'test_size': TEST_SIZE,
+                'use_ensemble': use_ensemble,
+                'model_version': model_version
+            }
+
+            return Response(config)
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request, *args, **kwargs):
+        """Update the model configuration"""
+        try:
+            # Get feature weights from request
+            feature_weights = request.data.get('feature_weights')
+            retrain_model = request.data.get('retrain_model', False)
+
+            # Validate input
+            if not feature_weights:
+                return Response(
+                    {'error': 'No feature weights provided'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Update feature weights in config
+            update_feature_weights(
+                description_weight=feature_weights.get('description'),
+                merchant_weight=feature_weights.get('merchant')
+            )
+
+            # Retrain model if requested
+            if retrain_model:
+                # Get the expense AI service
+                expense_service = get_expense_ai_service()
+
+                # Start training in a background thread
+                import threading
+
+                def train_model_task():
+                    try:
+                        # Train the model
+                        expense_service.train()
+                        logger.info("Model training completed successfully")
+                    except Exception as e:
+                        logger.error(f"Error training model: {str(e)}")
+
+                # Start training in a background thread
+                training_thread = threading.Thread(target=train_model_task)
+                training_thread.daemon = True
+                training_thread.start()
+
+                return Response({
+                    'message': 'Feature weights updated and model training started',
+                    'feature_weights': FEATURE_WEIGHTS
+                })
+            else:
+                return Response({
+                    'message': 'Feature weights updated',
+                    'feature_weights': FEATURE_WEIGHTS
+                })
 
         except Exception as e:
             return Response(

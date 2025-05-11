@@ -1,6 +1,7 @@
 # /srv/financial-app/ExpenseCategorizationAPI/urls.py
 from django.contrib import admin
 from django.urls import path, include, re_path
+from core.admin import custom_admin_site
 # from django.views.generic import RedirectView # No longer needed for root redirect
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -33,6 +34,7 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('manage-site-fintrackke/', admin.site.urls), # Your obscured admin URL
+    path('admin-dashboard/', custom_admin_site.urls), # Custom admin dashboard
 
     # Import app URLs
     path('api/expenses/', include('expenses.urls')),

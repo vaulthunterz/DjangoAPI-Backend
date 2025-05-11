@@ -1,0 +1,178 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('FinTrack Admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">
+        <span style="color: #3498db;">Fin</span><span style="color: #2ecc71;">Track</span> Admin
+    </a>
+</h1>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    :root {
+        --primary: #2c3e50;
+        --secondary: #3498db;
+        --accent: #2ecc71;
+        --primary-fg: #fff;
+        --body-fg: #333;
+        --body-bg: #f8f9fa;
+        --header-color: #fff;
+        --breadcrumbs-fg: #555;
+        --link-fg: #3498db;
+        --link-hover-color: #2980b9;
+        --link-selected-fg: #2ecc71;
+    }
+    
+    /* Header styling */
+    #header {
+        background: var(--primary);
+        color: var(--header-color);
+    }
+    
+    #header a:link, #header a:visited {
+        color: var(--header-color);
+    }
+    
+    /* Sidebar styling */
+    .module h2, .module caption, .inline-group h2 {
+        background: var(--primary);
+    }
+    
+    div.breadcrumbs {
+        background: var(--secondary);
+    }
+    
+    /* Button styling */
+    .button, input[type=submit], input[type=button], .submit-row input, a.button {
+        background: var(--secondary);
+    }
+    
+    .button:hover, input[type=submit]:hover, input[type=button]:hover, .submit-row input:hover {
+        background: var(--link-hover-color);
+    }
+    
+    .button.default, input[type=submit].default, .submit-row input.default {
+        background: var(--accent);
+    }
+    
+    .button.default:hover, input[type=submit].default:hover, .submit-row input.default:hover {
+        background: #27ae60;
+    }
+    
+    /* Link styling */
+    a:link, a:visited {
+        color: var(--link-fg);
+    }
+    
+    a:hover {
+        color: var(--link-hover-color);
+    }
+    
+    /* Dashboard styling */
+    .dashboard .module table th {
+        background: var(--primary);
+    }
+    
+    .dashboard .module table td a:link, .dashboard .module table td a:visited {
+        color: var(--link-fg);
+    }
+    
+    /* Selected row styling */
+    .row1 {
+        background: #f9f9f9;
+    }
+    
+    .row2 {
+        background: #f5f5f5;
+    }
+    
+    /* Custom dashboard button */
+    .dashboard-button {
+        background: var(--accent);
+        border-radius: 4px;
+        color: white !important;
+        display: inline-block;
+        font-weight: bold;
+        margin: 10px 0;
+        padding: 10px 15px;
+        text-decoration: none;
+    }
+    
+    .dashboard-button:hover {
+        background: #27ae60;
+        text-decoration: none;
+    }
+    
+    /* Custom dashboard stats */
+    .stats-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        flex: 1;
+        min-width: 200px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        color: var(--primary);
+        font-size: 24px;
+        font-weight: bold;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 14px;
+        margin-top: 5px;
+    }
+    
+    /* Footer styling */
+    #footer {
+        background: var(--primary);
+        color: #ecf0f1;
+        padding: 15px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block nav_sidebar %}
+    {% if not is_popup %}
+    <div class="sticky" id="nav-sidebar">
+        <a href="{% url 'admin:index' %}" class="icon-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-house" viewBox="0 0 16 16">
+                <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.707 1.5ZM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5 5 5Z"/>
+            </svg>
+            <span>Home</span>
+        </a>
+        {% if has_dashboard_permission %}
+        <a href="{% url 'admin:dashboard' %}" class="icon-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-speedometer2" viewBox="0 0 16 16">
+                <path d="M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zM3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707zM2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10zm9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5zm.754-4.246a.389.389 0 0 0-.527-.02L7.547 9.31a.91.91 0 1 0 1.302 1.258l3.434-4.297a.389.389 0 0 0-.029-.518z"/>
+                <path fill-rule="evenodd" d="M0 10a8 8 0 1 1 15.547 2.661c-.442 1.253-1.845 1.602-2.932 1.25C11.309 13.488 9.475 13 8 13c-1.474 0-3.31.488-4.615.911-1.087.352-2.49.003-2.932-1.25A7.988 7.988 0 0 1 0 10zm8-7a7 7 0 0 0-6.603 9.329c.203.575.923.876 1.68.63C4.397 12.533 6.358 12 8 12s3.604.532 4.923.96c.757.245 1.477-.056 1.68-.631A7 7 0 0 0 8 3z"/>
+            </svg>
+            <span>Dashboard</span>
+        </a>
+        {% endif %}
+        {{ block.super }}
+    </div>
+    {% endif %}
+{% endblock %}
+
+{% block footer %}
+<div id="footer">
+    <p>&copy; {% now "Y" %} FinTrack. All rights reserved.</p>
+</div>
+{% endblock %}
