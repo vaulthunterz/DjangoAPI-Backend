@@ -51,7 +51,12 @@ class CategoryAdmin(admin.ModelAdmin):
 
     def total_amount(self, obj):
         total = Transaction.objects.filter(category=obj).aggregate(Sum('amount'))['amount__sum']
-        return f"${total:.2f}" if total else "$0.00"
+        if total:
+            # Format the total as a string first
+            formatted_value = f"${float(total):.2f}"
+            return format_html("{}", formatted_value)
+        else:
+            return format_html("$0.00")
     total_amount.short_description = 'Total Amount'
 
     def get_queryset(self, request):
@@ -72,7 +77,12 @@ class SubCategoryAdmin(admin.ModelAdmin):
 
     def total_amount(self, obj):
         total = Transaction.objects.filter(subcategory=obj).aggregate(Sum('amount'))['amount__sum']
-        return f"${total:.2f}" if total else "$0.00"
+        if total:
+            # Format the total as a string first
+            formatted_value = f"${float(total):.2f}"
+            return format_html("{}", formatted_value)
+        else:
+            return format_html("$0.00")
     total_amount.short_description = 'Total Amount'
 
 @admin.register(Transaction)
@@ -100,7 +110,9 @@ class TransactionAdmin(admin.ModelAdmin):
     def formatted_amount(self, obj):
         color = 'red' if obj.is_expense else 'green'
         prefix = '-' if obj.is_expense else '+'
-        return format_html('<span style="color: {};">{}{:.2f}</span>', color, prefix, obj.amount)
+        # Format the amount as a string first
+        formatted_value = f"{float(obj.amount):.2f}"
+        return format_html('<span style="color: {};">{}{}</span>', color, prefix, formatted_value)
     formatted_amount.short_description = 'Amount'
 
     def transaction_type(self, obj):

@@ -44,7 +44,7 @@ urlpatterns = [
     path('api/investment/', include('investment.urls')),
     path('api/ai/', include('ai_service.urls')),
     # Authentication endpoints - direct path to user profile view
-    path('api/auth/user/', UserProfileView.as_view()),
+    path('api/expenses/user/', UserProfileView.as_view()),
 
     # Web interface URLs
     path('', home_view, name='home'),

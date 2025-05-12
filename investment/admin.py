@@ -161,7 +161,9 @@ class PortfolioItemAdmin(admin.ModelAdmin):
 
     def total_value(self, obj):
         total = obj.quantity * obj.buy_price
-        return format_html('${:.2f}', total)
+        # Format the total as a string first
+        formatted_value = f"${float(total):.2f}"
+        return format_html('{}', formatted_value)
     total_value.short_description = 'Total Value'
 
 @admin.register(MoneyMarketFund)
@@ -219,7 +221,10 @@ class RecommendationAdmin(admin.ModelAdmin):
             color = 'orange'
         else:
             color = 'green'
-        return format_html('<span style="color: {};">{:.1%}</span>', color, obj.confidence_score)
+        # Format the confidence score as a string first
+        percentage = float(obj.confidence_score) * 100
+        formatted_value = f"{percentage:.1f}%"
+        return format_html('<span style="color: {};">{}</span>', color, formatted_value)
     confidence_score_display.short_description = 'Confidence'
 
 @admin.register(Alert)

@@ -42,6 +42,7 @@ urlpatterns = [
     path('category-lookup/', CategoryLookupView.as_view(), name='category-lookup'),
     path('subcategory-lookup/', SubCategoryLookupView.as_view(), name='subcategory-lookup'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
+    # User profile endpoint - accessible via /api/expenses/user/
     path('user/', UserProfileView.as_view(), name='user-profile'),
 
     # Model metrics visualization
