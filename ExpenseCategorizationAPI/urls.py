@@ -18,6 +18,9 @@ from expenses.model_metrics_views import (
     training_status_api
 )
 
+# Import user profile view
+from expenses.user_views import UserProfileView
+
 # Swagger/OpenAPI configuration
 schema_view = get_schema_view(
     openapi.Info(
@@ -40,9 +43,8 @@ urlpatterns = [
     path('api/expenses/', include('expenses.urls')),
     path('api/investment/', include('investment.urls')),
     path('api/ai/', include('ai_service.urls')),
-    path('api/auth/', include([
-        path('user/', include('expenses.urls')),
-    ])),
+    # Authentication endpoints - direct path to user profile view
+    path('api/auth/user/', UserProfileView.as_view()),
 
     # Web interface URLs
     path('', home_view, name='home'),
