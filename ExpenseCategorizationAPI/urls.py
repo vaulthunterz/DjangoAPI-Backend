@@ -40,6 +40,9 @@ urlpatterns = [
     path('api/expenses/', include('expenses.urls')),
     path('api/investment/', include('investment.urls')),
     path('api/ai/', include('ai_service.urls')),
+    path('api/auth/', include([
+        path('user/', include('expenses.urls')),
+    ])),
 
     # Web interface URLs
     path('', home_view, name='home'),

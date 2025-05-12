@@ -5,6 +5,9 @@ URL configuration for the expenses app.
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
+# Define app namespace
+app_name = 'expenses'
+
 # Import view classes directly from the views.py file
 # Use absolute imports to avoid confusion with the views package
 from expenses.views import (
@@ -17,6 +20,7 @@ from expenses.views import (
     model_analysis_view,
     model_config_view
 )
+from expenses.user_views import UserProfileView
 
 # Import model metrics views from the model_metrics_views.py file
 from .model_metrics_views import (
@@ -38,6 +42,7 @@ urlpatterns = [
     path('category-lookup/', CategoryLookupView.as_view(), name='category-lookup'),
     path('subcategory-lookup/', SubCategoryLookupView.as_view(), name='subcategory-lookup'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
+    path('user/', UserProfileView.as_view(), name='user-profile'),
 
     # Model metrics visualization
     path('model-metrics/', model_metrics_view, name='model-metrics'),
